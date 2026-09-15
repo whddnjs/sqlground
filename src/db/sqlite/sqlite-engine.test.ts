@@ -105,6 +105,11 @@ describe('SqliteEngine', () => {
     await off.init()
     off.exec(schema)
     expect(off.exec('INSERT INTO b VALUES (99)').error).toBeUndefined()
+
+    off.setForeignKeys(true)
+    expect(off.exec('INSERT INTO b VALUES (98)').error?.message).toContain('FOREIGN KEY constraint failed')
+    off.setForeignKeys(false)
+    expect(off.exec('INSERT INTO b VALUES (98)').error).toBeUndefined()
   })
 
   it('export 한 바이너리를 import 하면 데이터가 복원된다', async () => {

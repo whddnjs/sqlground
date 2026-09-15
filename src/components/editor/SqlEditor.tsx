@@ -12,9 +12,10 @@ interface Props {
   /** 선택 영역이 있으면 선택 부분, 없으면 전체를 넘긴다 */
   onRun(sql: string): void
   tables: TableInfo[]
+  fontSize?: number
 }
 
-export function SqlEditor({ value, onChange, onRun, tables }: Props) {
+export function SqlEditor({ value, onChange, onRun, tables, fontSize = 14 }: Props) {
   const extensions = useMemo(() => {
     const schema = Object.fromEntries(tables.map((t) => [t.name, t.columns.map((c) => c.name)]))
     return [
@@ -35,7 +36,8 @@ export function SqlEditor({ value, onChange, onRun, tables }: Props) {
       onChange={onChange}
       extensions={extensions}
       height="100%"
-      className="h-full text-sm [&_.cm-editor]:h-full"
+      style={{ fontSize }}
+      className="h-full [&_.cm-editor]:h-full"
     />
   )
 }

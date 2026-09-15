@@ -14,7 +14,7 @@ const MAIN: Item[] = [
   { view: 'problems', label: '문제풀이', icon: ListChecks, comingSoon: true },
 ]
 
-const BOTTOM: Item[] = [{ view: 'settings', label: '설정', icon: Settings, comingSoon: true }]
+const BOTTOM: Item[] = [{ view: 'settings', label: '설정', icon: Settings }]
 
 export function NavRail() {
   return (

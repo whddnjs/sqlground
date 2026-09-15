@@ -51,4 +51,6 @@ export interface DbEngine {
   import(data: Uint8Array): Promise<void>
   /** 빈 DB 로 초기화 */
   reset(): Promise<void>
+  /** FOREIGN KEY 제약 강제 여부 변경. 즉시 적용 */
+  setForeignKeys(enabled: boolean): void
 }

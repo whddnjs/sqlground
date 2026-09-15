@@ -4,6 +4,7 @@ import type { ExecOutcome, TableInfo } from '../db/engine'
 import { clearDb, loadDb, saveDb } from '../db/persist'
 import type { Preset } from '../db/presets'
 import { SnapshotStack } from '../db/snapshot'
+import { useSettingsStore } from './settings-store'
 
 type Status = 'loading' | 'ready' | 'error'
 export type HistorySource = 'editor' | 'ui' | 'preset'
@@ -41,6 +42,10 @@ interface DbState {
   loadPreset(preset: Preset): void
   undo(): Promise<void>
   reset(): Promise<void>
+  exportDb(): Uint8Array
+  /** 파일에서 가져오기. 직전 상태는 스냅샷으로 남긴다 */
+  importDb(data: Uint8Array): Promise<void>
+  setForeignKeys(enabled: boolean): void
 }
 
 const engine = createEngine()
@@ -79,6 +84,7 @@ export const useDbStore = create<DbState>((set, get) => {
     async init() {
       try {
         await engine.init()
+        engine.setForeignKeys(useSettingsStore.getState().foreignKeys)
         const saved = await loadDb()
         if (saved) await engine.import(saved)
         refresh({ status: 'ready' })
@@ -132,6 +138,22 @@ export const useDbStore = create<DbState>((set, get) => {
       clearTimeout(saveTimer)
       await clearDb()
       refresh({ outcome: null, notice: null })
+    },
+
+    exportDb() {
+      return engine.export()
+    },
+
+    async importDb(data) {
+      snapshots.push(engine.export())
+      await engine.import(data)
+      // 깨진 파일이면 여기서 에러가 난다. getTables 로 실제 읽히는지 확인
+      refresh({ outcome: null, notice: { sql: '-- DB 파일 가져오기', rowsAffected: 0 } })
+      scheduleSave()
+    },
+
+    setForeignKeys(enabled) {
+      engine.setForeignKeys(enabled)
     },
   }
 })

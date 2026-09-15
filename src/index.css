@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* 설정에서 고른 테마를 <html class="dark"> 로 적용한다. system 은 JS 가 OS 설정을 보고 클래스를 붙인다 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html, body, #root {
   height: 100%;
+}
+
+html.dark {
+  color-scheme: dark;
 }

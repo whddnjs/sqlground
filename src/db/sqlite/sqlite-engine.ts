@@ -22,10 +22,15 @@ const DML_PATTERN = /^\s*(insert|update|delete|replace)\b/i
 export class SqliteEngine implements DbEngine {
   private sqlJs: SqlJsStatic | null = null
   private db: Database | null = null
-  private readonly options: SqliteEngineOptions
+  private options: SqliteEngineOptions
 
   constructor(options: SqliteEngineOptions = {}) {
     this.options = options
+  }
+
+  setForeignKeys(enabled: boolean): void {
+    this.options = { ...this.options, foreignKeys: enabled }
+    if (this.db) this.applyPragmas(this.db)
   }
 
   async init(): Promise<void> {
@@ -44,7 +49,7 @@ export class SqliteEngine implements DbEngine {
 
   /** 연결 단위 설정. 새 연결을 열 때와 export 후(sql.js 가 연결을 다시 연다)에 적용한다 */
   private applyPragmas(db: Database): void {
-    if (this.options.foreignKeys ?? true) db.run('PRAGMA foreign_keys = ON')
+    db.run(`PRAGMA foreign_keys = ${(this.options.foreignKeys ?? true) ? 'ON' : 'OFF'}`)
   }
 
   exec(sql: string): ExecOutcome {

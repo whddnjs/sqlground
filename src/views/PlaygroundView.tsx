@@ -10,12 +10,14 @@ import type { TableInfo } from '../db/engine'
 import { buildDropTable, buildSelectAll } from '../lib/sql-builder'
 import { useDbStore } from '../store/db-store'
 import { useEditorStore } from '../store/editor-store'
+import { useSettingsStore } from '../store/settings-store'
 
 type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | { type: 'alter'; table: string } | null
 
 export function PlaygroundView() {
   const { tables, outcome, notice, history, run, runFromUi } = useDbStore()
   const { code, setCode, appendCode } = useEditorStore()
+  const fontSize = useSettingsStore((s) => s.fontSize)
   const [dialog, setDialog] = useState<Dialog>(null)
 
   const handleRun = useCallback((sql: string) => run(sql), [run])
@@ -53,7 +55,7 @@ export function PlaygroundView() {
         <Panel>
           <Group orientation="vertical">
             <Panel defaultSize="45%" minSize="20%" className="overflow-hidden">
-              <SqlEditor value={code} onChange={setCode} onRun={handleRun} tables={tables} />
+              <SqlEditor value={code} onChange={setCode} onRun={handleRun} tables={tables} fontSize={fontSize} />
             </Panel>
             <Separator className="h-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
             <Panel className="overflow-hidden">
