@@ -66,7 +66,7 @@ interface DbEngine {
 | 빌드 | Vite + React + TypeScript |
 | DB | sql.js (`DbEngine` 인터페이스 뒤에 숨김) |
 | SQL 에디터 | CodeMirror 6 (`@uiw/react-codemirror` + `@codemirror/lang-sql`) |
-| 결과 그리드 | TanStack Table |
+| 결과 그리드 | 직접 구현한 테이블 (TanStack Table v9는 API가 크게 바뀌어 단순 그리드엔 과함) |
 | 레이아웃 | `react-resizable-panels` |
 | UI | Tailwind + shadcn/ui |
 | 상태 관리 | zustand |
@@ -127,7 +127,7 @@ interface DbEngine {
 │              │                          [실행] [되돌리기] │
 │ ▸ customers  ├──────────────────────────────────────┤
 │ ▸ orders     │ 결과 그리드 / 생성된 SQL / 에러       │
-│ ▸ products   │ (TanStack Table)                      │
+│ ▸ products   │ (페이징 테이블)                       │
 │              │                                       │
 │ [+ 테이블]   │                                       │
 │ [샘플 로드]  │                                       │
