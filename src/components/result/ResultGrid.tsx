@@ -10,7 +10,7 @@ interface Props {
   result: QueryResult
   /** 있으면 셀 더블클릭 편집과 행 삭제가 켜진다 */
   editable?: EditableTarget | null
-  onUpdateCell?(pkValue: SqlValue, column: string, type: string, value: string): void
+  onUpdateCell?(pkValue: SqlValue, column: string, type: string, value: string | null): void
   onDeleteRow?(pkValue: SqlValue): void
 }
 
@@ -29,11 +29,11 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
   const offset = current * PAGE_SIZE
   const visible = rows.slice(offset, offset + PAGE_SIZE)
 
-  const commit = () => {
+  const commit = (value: string | null) => {
     if (!editing || !editable || !onUpdateCell) return
     const row = rows[editing.row]
     const col = editable.columnMap.get(editing.col)
-    if (col) onUpdateCell(row[editable.pkIndex], col.name, col.type, editing.value)
+    if (col) onUpdateCell(row[editable.pkIndex], col.name, col.type, value)
     setEditing(null)
   }
 
@@ -45,7 +45,7 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
         </p>
       )}
       {editable && (
-        <p className="text-xs text-neutral-500">셀을 더블클릭하면 값을 고칠 수 있습니다. Enter 로 저장, Esc 로 취소.</p>
+        <p className="text-xs text-neutral-500">셀을 더블클릭하면 값을 고칠 수 있습니다. Enter 로 저장, Esc 로 취소, NULL 버튼으로 비우기.</p>
       )}
       <div className="overflow-x-auto rounded border border-neutral-200 dark:border-neutral-700">
         <table className="min-w-full text-sm">
@@ -76,17 +76,30 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
                         className={['px-3 py-1 whitespace-nowrap', canEdit ? 'cursor-text hover:bg-blue-50 dark:hover:bg-blue-950/40' : ''].join(' ')}
                       >
                         {isEditing ? (
-                          <input
-                            autoFocus
-                            value={editing.value}
-                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                            onBlur={() => setEditing(null)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') commit()
-                              if (e.key === 'Escape') setEditing(null)
-                            }}
-                            className="w-full min-w-24 rounded border border-blue-500 bg-white px-1 py-0 text-sm focus:outline-none dark:bg-neutral-800"
-                          />
+                          <span className="flex items-center gap-1">
+                            <input
+                              autoFocus
+                              value={editing.value}
+                              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                              onBlur={() => setEditing(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') commit(editing.value)
+                                if (e.key === 'Escape') setEditing(null)
+                              }}
+                              className="w-full min-w-24 rounded border border-blue-500 bg-white px-1 py-0 text-sm focus:outline-none dark:bg-neutral-800"
+                            />
+                            <button
+                              title="이 셀을 NULL 로"
+                              // blur 로 편집이 닫히기 전에 처리되도록 mousedown 에서 실행
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                commit(null)
+                              }}
+                              className="shrink-0 rounded border border-neutral-300 px-1 text-[10px] text-neutral-500 hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-700"
+                            >
+                              NULL
+                            </button>
+                          </span>
                         ) : (
                           <Cell value={v} />
                         )}
