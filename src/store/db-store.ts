@@ -11,6 +11,7 @@ interface DbState {
   outcome: ExecOutcome | null
   init(): Promise<void>
   run(sql: string): void
+  reset(): Promise<void>
 }
 
 const engine = createEngine()
@@ -33,5 +34,10 @@ export const useDbStore = create<DbState>((set) => ({
   run(sql) {
     const outcome = engine.exec(sql)
     set({ outcome, tables: engine.getTables() })
+  },
+
+  async reset() {
+    await engine.reset()
+    set({ outcome: null, tables: [] })
   },
 }))
