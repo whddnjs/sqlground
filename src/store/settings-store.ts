@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 
 const KEY = 'sqlground:settings'
@@ -50,4 +51,18 @@ export function applyTheme(theme: Theme): () => void {
   apply()
   media.addEventListener('change', apply)
   return () => media.removeEventListener('change', apply)
+}
+
+const darkMedia = () => window.matchMedia('(prefers-color-scheme: dark)')
+const subscribeMedia = (cb: () => void) => {
+  const m = darkMedia()
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
+
+/** 설정과 OS 설정을 합쳐 실제로 적용 중인 테마 */
+export function useEffectiveTheme(): 'light' | 'dark' {
+  const theme = useSettingsStore((s) => s.theme)
+  const osDark = useSyncExternalStore(subscribeMedia, () => darkMedia().matches, () => false)
+  return theme === 'dark' || (theme === 'system' && osDark) ? 'dark' : 'light'
 }
