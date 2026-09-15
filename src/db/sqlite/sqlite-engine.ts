@@ -13,6 +13,8 @@ import type {
 export interface SqliteEngineOptions {
   /** 브라우저에서는 번들된 wasm URL 을 넘긴다. node(테스트)에서는 생략 */
   wasmUrl?: string
+  /** FOREIGN KEY 제약을 강제할지. 기본 true. 연결마다 PRAGMA 로 켜야 한다 */
+  foreignKeys?: boolean
 }
 
 const DML_PATTERN = /^\s*(insert|update|delete|replace)\b/i
@@ -30,7 +32,19 @@ export class SqliteEngine implements DbEngine {
     if (this.db) return
     const { wasmUrl } = this.options
     this.sqlJs = await initSqlJs(wasmUrl ? { locateFile: () => wasmUrl } : undefined)
-    this.db = new this.sqlJs.Database()
+    this.db = this.open()
+  }
+
+  private open(data?: Uint8Array): Database {
+    const { Database } = this.requireSqlJs()
+    const db = new Database(data)
+    this.applyPragmas(db)
+    return db
+  }
+
+  /** 연결 단위 설정. 새 연결을 열 때와 export 후(sql.js 가 연결을 다시 연다)에 적용한다 */
+  private applyPragmas(db: Database): void {
+    if (this.options.foreignKeys ?? true) db.run('PRAGMA foreign_keys = ON')
   }
 
   exec(sql: string): ExecOutcome {
@@ -113,21 +127,22 @@ export class SqliteEngine implements DbEngine {
   }
 
   export(): Uint8Array {
-    return this.requireDb().export()
+    const db = this.requireDb()
+    const data = db.export()
+    this.applyPragmas(db)
+    return data
   }
 
   async import(data: Uint8Array): Promise<void> {
     await this.init()
-    const { Database } = this.requireSqlJs()
     this.db?.close()
-    this.db = new Database(data)
+    this.db = this.open(data)
   }
 
   async reset(): Promise<void> {
     await this.init()
-    const { Database } = this.requireSqlJs()
     this.db?.close()
-    this.db = new Database()
+    this.db = this.open()
   }
 
   private requireDb(): Database {

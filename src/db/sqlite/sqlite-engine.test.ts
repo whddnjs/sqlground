@@ -85,6 +85,28 @@ describe('SqliteEngine', () => {
     ])
   })
 
+  it('FOREIGN KEY 제약이 켜져 있고 import/reset 후에도 유지된다', async () => {
+    const schema = `CREATE TABLE a (id INTEGER PRIMARY KEY); CREATE TABLE b (a_id INTEGER REFERENCES a(id));`
+    engine.exec(schema)
+    expect(engine.exec('INSERT INTO b VALUES (99)').error?.message).toContain('FOREIGN KEY constraint failed')
+
+    await engine.import(engine.export())
+    expect(engine.exec('INSERT INTO b VALUES (99)').error?.message).toContain('FOREIGN KEY constraint failed')
+
+    // sql.js 의 export 는 연결을 닫았다 다시 열어 PRAGMA 가 초기화된다. 스냅샷마다 export 하므로 반드시 유지돼야 한다
+    engine.export()
+    expect(engine.exec('INSERT INTO b VALUES (99)').error?.message).toContain('FOREIGN KEY constraint failed')
+
+    await engine.reset()
+    engine.exec(schema)
+    expect(engine.exec('INSERT INTO b VALUES (99)').error?.message).toContain('FOREIGN KEY constraint failed')
+
+    const off = new SqliteEngine({ foreignKeys: false })
+    await off.init()
+    off.exec(schema)
+    expect(off.exec('INSERT INTO b VALUES (99)').error).toBeUndefined()
+  })
+
   it('export 한 바이너리를 import 하면 데이터가 복원된다', async () => {
     engine.exec(`CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('hello');`)
     const snapshot = engine.export()
