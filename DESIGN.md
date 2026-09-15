@@ -279,6 +279,12 @@ src/
 
 ## 10. 다음 후보
 
-- GitHub 저장소 생성 + Vercel 배포
-- 번들 크기 줄이기 (현재 약 1MB, 학습·문제풀이 뷰와 CodeMirror 코드 스플리팅)
 - PostgreSQL(PGlite) 엔진, URL 공유, Supabase 로그인
+- 모바일 레이아웃 (현재 데스크톱 전용)
+
+## 11. 배포 현황 (2026-09-15)
+
+- GitHub: https://github.com/whddnjs/sqlground (공개, main)
+- Vercel: https://sqlground.vercel.app (프로젝트 whddnjs-projects/sqlground, GitHub 연동으로 main push 시 자동 배포)
+- 고유 배포 URL(`sqlground-xxxx-whddnjs-projects.vercel.app`)은 Vercel 인증 보호가 걸려 있어 외부에서 열리지 않음. 공유는 항상 `sqlground.vercel.app` 로
+- 번들 분리 적용: 첫 화면 810KB, 학습 콘텐츠·문제풀이·설정·관계도는 지연 로딩

@@ -1,6 +1,6 @@
 # SQLGround
 
-설치 없이 브라우저에서 바로 SQL 을 연습하는 웹사이트.
+설치 없이 브라우저에서 바로 SQL 을 연습하는 웹사이트. **https://sqlground.vercel.app**
 
 - DB 도, 에디터도 설치할 필요 없음. 링크만 열면 끝
 - 쿼리는 서버가 아니라 **브라우저 안**(sql.js, SQLite WASM)에서 실행
