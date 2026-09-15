@@ -45,7 +45,7 @@ export class SqliteEngine implements DbEngine {
     // for..of 로 순회하면 sql.js 가 statement 를 자동으로 free 한다
     try {
       for (const stmt of iterator) {
-        const statementSql = stmt.getSQL().trim()
+        const statementSql = stripLeadingComments(stmt.getSQL())
         const started = performance.now()
         const columns = stmt.getColumnNames()
         const rows: SqlValue[][] = []
@@ -122,6 +122,11 @@ export class SqliteEngine implements DbEngine {
     if (!this.sqlJs) throw new Error('SqliteEngine 이 초기화되지 않았습니다. init() 을 먼저 호출하세요.')
     return this.sqlJs
   }
+}
+
+/** 문장 앞에 붙은 주석과 공백을 제거한다. sql.js 의 getSQL 은 앞선 주석을 포함해 돌려준다 */
+export function stripLeadingComments(sql: string): string {
+  return sql.replace(/^(\s*(--[^\n]*\n?|\/\*[\s\S]*?\*\/))*\s*/, '').trim()
 }
 
 export function quoteIdentifier(name: string): string {

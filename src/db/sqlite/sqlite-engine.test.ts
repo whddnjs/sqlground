@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { SqliteEngine } from './sqlite-engine'
+import { SqliteEngine, stripLeadingComments } from './sqlite-engine'
 
 describe('SqliteEngine', () => {
   let engine: SqliteEngine
@@ -24,6 +24,17 @@ describe('SqliteEngine', () => {
       [1, 'a'],
       [2, 'b'],
     ])
+  })
+
+  it('결과의 sql 에는 문장 앞 주석이 포함되지 않는다', () => {
+    const { results } = engine.exec(`
+      -- 테이블 생성
+      /* 블록 주석 */
+      CREATE TABLE t (id INTEGER);
+      -- 조회
+      SELECT * FROM t;
+    `)
+    expect(results.map((r) => r.sql)).toEqual(['CREATE TABLE t (id INTEGER);', 'SELECT * FROM t;'])
   })
 
   it('중간 문장이 실패하면 거기서 중단하고 앞선 결과와 에러를 함께 돌려준다', () => {
@@ -77,5 +88,12 @@ describe('SqliteEngine', () => {
     engine.exec(`CREATE TABLE t (v TEXT)`)
     await engine.reset()
     expect(engine.getTables()).toHaveLength(0)
+  })
+})
+
+describe('stripLeadingComments', () => {
+  it('앞선 줄 주석과 블록 주석만 제거하고 본문 안의 주석은 남긴다', () => {
+    expect(stripLeadingComments('  -- a\n/* b */\nSELECT 1 -- c')).toBe('SELECT 1 -- c')
+    expect(stripLeadingComments('SELECT 1')).toBe('SELECT 1')
   })
 })
