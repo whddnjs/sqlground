@@ -10,3 +10,21 @@ html, body, #root {
 html.dark {
   color-scheme: dark;
 }
+
+/* 학습 콘텐츠 (react-markdown 출력) 기본 서식 */
+.lesson-body { line-height: 1.7; font-size: 15px; }
+.lesson-body h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.75rem; }
+.lesson-body h3 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.lesson-body p { margin: 0.75rem 0; }
+.lesson-body ul, .lesson-body ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+.lesson-body ul { list-style: disc; }
+.lesson-body ol { list-style: decimal; }
+.lesson-body li { margin: 0.25rem 0; }
+.lesson-body strong { font-weight: 600; }
+.lesson-body table { border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9em; }
+.lesson-body th, .lesson-body td { border: 1px solid var(--color-neutral-300); padding: 0.3rem 0.6rem; }
+.dark .lesson-body th, .dark .lesson-body td { border-color: var(--color-neutral-700); }
+.lesson-body th { background: var(--color-neutral-100); }
+.dark .lesson-body th { background: var(--color-neutral-800); }
+.lesson-body blockquote { border-left: 3px solid var(--color-amber-400); padding-left: 0.75rem; color: var(--color-neutral-600); margin: 0.75rem 0; }
+.dark .lesson-body blockquote { color: var(--color-neutral-400); }

@@ -9,6 +9,7 @@ import { applyTheme, useSettingsStore } from './store/settings-store'
 import { useUiStore } from './store/ui-store'
 import { ComingSoon } from './views/ComingSoon'
 import { ErdView } from './views/ErdView'
+import { LearnView } from './views/LearnView'
 import { PlaygroundView } from './views/PlaygroundView'
 import { SettingsView } from './views/SettingsView'
 
@@ -48,6 +49,7 @@ export default function App() {
         <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} />
         <main className="min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView />}
+          {view === 'learn' && <LearnView />}
           {view === 'erd' && <ErdView />}
           {view === 'problems' && (
             <ComingSoon
