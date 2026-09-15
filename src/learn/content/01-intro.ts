@@ -29,12 +29,13 @@ SELECT '안녕하세요' AS greeting, 1 + 1 AS sum;
 
 ## 학습용 DB 에 들어 있는 것
 
-두 가지 샘플 데이터가 미리 실려 있습니다.
+세 가지 샘플 데이터가 미리 실려 있습니다.
 
 | 샘플 | 테이블 | 연습 포인트 |
 |---|---|---|
 | 쇼핑몰 | customers, products, orders, order_items | JOIN, 집계, 매출 계산 |
 | 학교 | students, courses, enrollments | 다대다 관계, NULL 성적, 학기별 평균 |
+| 회사 | departments, employees | 자기 참조(상사), 윈도우 함수, 재귀 CTE |
 
 다음 단원에서 이 테이블들을 살펴봅니다.
 `,

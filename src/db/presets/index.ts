@@ -1,6 +1,7 @@
 import type { Preset } from './preset'
+import { COMPANY_PRESET } from './company'
 import { SCHOOL_PRESET } from './school'
 import { SHOP_PRESET } from './shop'
 
 export type { Preset }
-export const PRESETS: Preset[] = [SHOP_PRESET, SCHOOL_PRESET]
+export const PRESETS: Preset[] = [SHOP_PRESET, SCHOOL_PRESET, COMPANY_PRESET]

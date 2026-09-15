@@ -63,3 +63,24 @@ describe('학교 프리셋', () => {
     expect(results[0].rows.length).toBeGreaterThan(18)
   })
 })
+
+describe('회사 프리셋', () => {
+  it('자기 참조 계층과 부서 미배정 직원, 윈도우 함수가 동작한다', async () => {
+    const engine = new SqliteEngine()
+    await engine.init()
+    engine.exec(PRESETS[2].sql)
+    expect(engine.exec('SELECT count(*) FROM employees WHERE manager_id IS NULL').results[0].rows[0][0]).toBe(1)
+    expect(Number(engine.exec('SELECT count(*) FROM employees WHERE department_id IS NULL').results[0].rows[0][0])).toBeGreaterThan(0)
+    const { results, error } = engine.exec(`
+      WITH RECURSIVE chain(id, name, depth) AS (
+        SELECT id, name, 0 FROM employees WHERE manager_id IS NULL
+        UNION ALL
+        SELECT e.id, e.name, c.depth + 1 FROM employees e JOIN chain c ON e.manager_id = c.id
+      )
+      SELECT max(depth) FROM chain
+    `)
+    expect(error).toBeUndefined()
+    expect(results[0].rows[0][0]).toBe(3)
+    expect(engine.exec('SELECT name, rank() OVER (PARTITION BY department_id ORDER BY salary DESC) FROM employees').error).toBeUndefined()
+  })
+})
