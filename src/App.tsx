@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
+import type { Preset } from './db/presets'
 import { NavRail } from './components/layout/NavRail'
 import { useDbStore } from './store/db-store'
 import { useUiStore } from './store/ui-store'
 import { ComingSoon } from './views/ComingSoon'
 import { PlaygroundView } from './views/PlaygroundView'
+
+const CODE_KEY = 'sqlground:code'
+
+function loadCode(): string {
+  try {
+    return localStorage.getItem(CODE_KEY) ?? INITIAL_SQL
+  } catch {
+    return INITIAL_SQL
+  }
+}
 
 const INITIAL_SQL = `-- Cmd/Ctrl + Enter 로 실행합니다. 선택 영역이 있으면 그 부분만 실행합니다.
 CREATE TABLE users (
@@ -19,18 +30,34 @@ SELECT * FROM users;
 `
 
 export default function App() {
-  const { status, loadError, init, run, reset } = useDbStore()
+  const { status, loadError, tables, init, run, reset, loadPreset } = useDbStore()
   const view = useUiStore((s) => s.view)
-  const [code, setCode] = useState(INITIAL_SQL)
+  const [code, setCode] = useState(loadCode)
 
   useEffect(() => {
     void init()
   }, [init])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(CODE_KEY, code)
+    } catch {
+      // 저장 불가 환경이면 무시
+    }
+  }, [code])
+
   const handleRun = useCallback((sql: string) => run(sql), [run])
   const handleReset = useCallback(() => {
     if (window.confirm('모든 테이블과 데이터를 지우고 빈 DB 로 초기화할까요?')) void reset()
   }, [reset])
+  const handleLoadPreset = useCallback(
+    (preset: Preset) => {
+      const existing = tables.map((t) => t.name).filter((n) => preset.tables.includes(n))
+      if (existing.length > 0 && !window.confirm(`이미 있는 테이블(${existing.join(', ')})을 샘플 데이터로 덮어씁니다. 계속할까요?`)) return
+      loadPreset(preset)
+    },
+    [tables, loadPreset],
+  )
 
   if (status === 'loading') return <Centered>DB 엔진을 불러오는 중…</Centered>
   if (status === 'error') return <Centered>DB 엔진을 불러오지 못했습니다: {loadError}</Centered>
@@ -39,7 +66,7 @@ export default function App() {
     <div className="flex h-full bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
       <NavRail />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header onRun={() => run(code)} onReset={handleReset} />
+        <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} />
         <main className="min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView code={code} onCodeChange={setCode} onRun={handleRun} />}
           {view === 'problems' && (

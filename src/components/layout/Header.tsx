@@ -1,14 +1,19 @@
 import { ChevronDown, Play, RotateCcw, Trash2, Upload } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { PRESETS, type Preset } from '../../db/presets'
+import { useDbStore } from '../../store/db-store'
 import { useUiStore } from '../../store/ui-store'
 
 interface Props {
   onRun(): void
   onReset(): void
+  onLoadPreset(preset: Preset): void
 }
 
-export function Header({ onRun, onReset }: Props) {
+export function Header({ onRun, onReset, onLoadPreset }: Props) {
   const view = useUiStore((s) => s.view)
+  const undoCount = useDbStore((s) => s.undoCount)
+  const undo = useDbStore((s) => s.undo)
 
   return (
     <header className="flex h-12 items-center gap-3 border-b border-neutral-200 px-4 dark:border-neutral-700">
@@ -25,8 +30,14 @@ export function Header({ onRun, onReset }: Props) {
 
       {view === 'playground' && (
         <div className="ml-auto flex items-center gap-1">
-          <ToolButton icon={<Upload size={14} />} label="샘플 로드" disabled title="샘플 데이터셋은 준비 중입니다" />
-          <ToolButton icon={<RotateCcw size={14} />} label="되돌리기" disabled title="실행 전으로 되돌리기는 준비 중입니다" />
+          <PresetMenu onSelect={onLoadPreset} />
+          <ToolButton
+            icon={<RotateCcw size={14} />}
+            label="되돌리기"
+            disabled={undoCount === 0}
+            onClick={() => void undo()}
+            title={undoCount === 0 ? '되돌릴 실행이 없습니다' : `직전 실행 전으로 되돌립니다 (${undoCount}단계 남음)`}
+          />
           <ToolButton icon={<Trash2 size={14} />} label="초기화" onClick={onReset} title="모든 테이블과 데이터를 지웁니다" />
           <button
             onClick={onRun}
@@ -39,6 +50,44 @@ export function Header({ onRun, onReset }: Props) {
         </div>
       )}
     </header>
+  )
+}
+
+function PresetMenu({ onSelect }: { onSelect(preset: Preset): void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <ToolButton icon={<Upload size={14} />} label="샘플 로드" onClick={() => setOpen((o) => !o)} title="연습용 샘플 데이터를 불러옵니다" />
+      {open && (
+        <ul className="absolute right-0 z-10 mt-1 w-72 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+          {PRESETS.map((p) => (
+            <li key={p.id}>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  onSelect(p)
+                }}
+                className="w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              >
+                <p className="text-sm font-medium">{p.name}</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">{p.description}</p>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
