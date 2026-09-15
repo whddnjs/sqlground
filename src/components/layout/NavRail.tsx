@@ -1,4 +1,4 @@
-import { BookOpen, Database, ListChecks, Settings, Waypoints, type LucideIcon } from 'lucide-react'
+import { BookOpen, Database, ListChecks, Settings, type LucideIcon } from 'lucide-react'
 import { useUiStore, type View } from '../../store/ui-store'
 
 interface Item {
@@ -11,7 +11,6 @@ interface Item {
 const MAIN: Item[] = [
   { view: 'playground', label: '연습장', icon: Database },
   { view: 'learn', label: '학습', icon: BookOpen },
-  { view: 'erd', label: '관계도', icon: Waypoints },
   { view: 'problems', label: '문제풀이', icon: ListChecks, comingSoon: true },
 ]
 

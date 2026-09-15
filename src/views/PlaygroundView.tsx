@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { SqlEditor } from '../components/editor/SqlEditor'
 import { AlterTableDialog } from '../components/forms/AlterTableDialog'
@@ -11,6 +11,7 @@ import { buildDropTable, buildSelectAll } from '../lib/sql-builder'
 import { useDbStore } from '../store/db-store'
 import { useEditorStore } from '../store/editor-store'
 import { useSettingsStore } from '../store/settings-store'
+import { ErdView } from './ErdView'
 
 type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | { type: 'alter'; table: string } | null
 
@@ -19,6 +20,16 @@ export function PlaygroundView() {
   const { code, setCode, appendCode } = useEditorStore()
   const fontSize = useSettingsStore((s) => s.fontSize)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [showErd, setShowErd] = useState(false)
+
+  useEffect(() => {
+    if (!showErd) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !dialog) setShowErd(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showErd, dialog])
 
   const handleRun = useCallback((sql: string) => run(sql), [run])
   const close = () => setDialog(null)
@@ -30,6 +41,16 @@ export function PlaygroundView() {
     runFromUi(sql)
     close()
   }
+  const selectTable = (t: TableInfo) => {
+    const sql = buildSelectAll(t.name)
+    appendCode(sql)
+    run(sql)
+    setShowErd(false)
+  }
+  const dropTable = (t: TableInfo) => {
+    const sql = buildDropTable(t.name)
+    if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) runFromUi(sql)
+  }
 
   return (
     <>
@@ -38,17 +59,11 @@ export function PlaygroundView() {
           <SchemaBrowser
             tables={tables}
             onCreateTable={() => setDialog({ type: 'create' })}
-            onSelectTable={(t) => {
-              const sql = buildSelectAll(t.name)
-              appendCode(sql)
-              run(sql)
-            }}
+            onSelectTable={selectTable}
             onInsertRow={(t) => setDialog({ type: 'insert', table: t })}
             onAlterTable={(t) => setDialog({ type: 'alter', table: t.name })}
-            onDropTable={(t) => {
-              const sql = buildDropTable(t.name)
-              if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) runFromUi(sql)
-            }}
+            onDropTable={dropTable}
+            onShowErd={() => setShowErd(true)}
           />
         </Panel>
         <Separator className="w-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
@@ -71,6 +86,18 @@ export function PlaygroundView() {
           </Group>
         </Panel>
       </Group>
+
+      {showErd && (
+        <div className="absolute inset-0 z-20">
+          <ErdView
+            onClose={() => setShowErd(false)}
+            onSelectTable={selectTable}
+            onInsertRow={(t) => setDialog({ type: 'insert', table: t })}
+            onAlterTable={(t) => setDialog({ type: 'alter', table: t.name })}
+            onDropTable={dropTable}
+          />
+        </div>
+      )}
 
       {dialog?.type === 'create' && <CreateTableDialog tables={tables} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
       {dialog?.type === 'insert' && <InsertRowDialog table={dialog.table} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}

@@ -1,4 +1,4 @@
-import { Minus, Plus, RotateCcw } from 'lucide-react'
+import { Eye, Minus, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import {
   HEADER_HEIGHT,
@@ -9,16 +9,27 @@ import {
   layeredLayout,
   type Box,
 } from '../lib/erd-layout'
+import type { TableInfo } from '../db/engine'
 import { useDbStore } from '../store/db-store'
 import { useDescriptionStore } from '../store/description-store'
+
+interface Props {
+  onClose(): void
+  onSelectTable(table: TableInfo): void
+  onInsertRow(table: TableInfo): void
+  onAlterTable(table: TableInfo): void
+  onDropTable(table: TableInfo): void
+}
 
 const ZOOM_MIN = 0.3
 const ZOOM_MAX = 2.5
 
 type Drag = { kind: 'box'; table: string; dx: number; dy: number } | { kind: 'pan'; startX: number; startY: number; panX: number; panY: number }
 
-export function ErdView() {
+export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onDropTable }: Props) {
   const tables = useDbStore((s) => s.tables)
+  const [selected, setSelected] = useState<string | null>(null)
+  const selectedTable = tables.find((t) => t.name === selected) ?? null
   const describe = useDescriptionStore((s) => s.get)
   // 드래그로 옮긴 위치만 상태로 두고, 기본 배치는 테이블 구성에서 매번 계산한다
   const [moved, setMoved] = useState<Record<string, { x: number; y: number }>>({})
@@ -49,18 +60,23 @@ export function ErdView() {
   }
   const zoomBy = (factor: number) => setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z * factor)))
 
-  if (tables.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-neutral-500">
-        테이블이 없습니다. 연습장에서 테이블을 만들거나 샘플을 불러오면 관계도가 그려집니다.
-      </div>
-    )
-  }
+  const actionButton = 'flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800'
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
       <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-700">
-        <span>박스는 드래그로 옮기고, 빈 곳을 드래그하면 화면이 움직입니다. 선은 FOREIGN KEY 관계입니다.</span>
+        <span className="font-medium text-neutral-800 dark:text-neutral-100">관계도</span>
+        {selectedTable ? (
+          <div className="flex items-center gap-1">
+            <span className="mr-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-blue-800 dark:bg-blue-950 dark:text-blue-200">{selectedTable.name}</span>
+            <button onClick={() => onSelectTable(selectedTable)} className={actionButton} title="조회 (SELECT)"><Eye size={12} /> 조회</button>
+            <button onClick={() => onInsertRow(selectedTable)} className={actionButton} title="행 추가 (INSERT)"><Plus size={12} /> 행 추가</button>
+            <button onClick={() => onAlterTable(selectedTable)} className={actionButton} title="구조 변경 (ALTER TABLE)"><Settings2 size={12} /> 구조 변경</button>
+            <button onClick={() => onDropTable(selectedTable)} className={`${actionButton} text-red-600`} title="테이블 삭제 (DROP)"><Trash2 size={12} /> 삭제</button>
+          </div>
+        ) : (
+          <span>테이블을 클릭하면 조회·수정 버튼이 나옵니다. 더블클릭은 구조 변경. 빈 곳을 드래그하면 화면이 움직입니다.</span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           <button onClick={() => zoomBy(1 / 1.2)} title="축소" className="rounded p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <Minus size={14} />
@@ -72,9 +88,15 @@ export function ErdView() {
           <button onClick={resetView} className="ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
             <RotateCcw size={12} /> 배치 초기화
           </button>
+          <button onClick={onClose} title="닫기 (Esc)" className="ml-2 rounded p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="관계도 닫기">
+            <X size={16} />
+          </button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden bg-neutral-50 dark:bg-neutral-950">
+      {tables.length === 0 && (
+        <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">테이블이 없습니다. 테이블을 만들거나 샘플을 불러오면 관계도가 그려집니다.</div>
+      )}
+      {tables.length > 0 && <div className="min-h-0 flex-1 overflow-hidden bg-neutral-50 dark:bg-neutral-950">
         <svg
           ref={svgRef}
           width="100%"
@@ -83,6 +105,7 @@ export function ErdView() {
           onPointerDown={(e) => {
             // 박스 위에서 시작한 드래그는 박스 쪽 핸들러가 먼저 잡는다
             if (drag.current) return
+            setSelected(null)
             drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y }
             setPanning(true)
             e.currentTarget.setPointerCapture(e.pointerId)
@@ -147,14 +170,16 @@ export function ErdView() {
                   key={b.table}
                   transform={`translate(${b.x},${b.y})`}
                   className="cursor-move"
+                  onDoubleClick={() => onAlterTable(t)}
                   onPointerDown={(e) => {
                     e.stopPropagation()
+                    setSelected(b.table)
                     const p = toDiagram(e)
                     drag.current = { kind: 'box', table: b.table, dx: p.x - b.x, dy: p.y - b.y }
                     svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
-                  <rect width={b.width} height={b.height} rx="6" className="fill-white stroke-neutral-300 dark:fill-neutral-900 dark:stroke-neutral-600" strokeWidth="1" />
+                  <rect width={b.width} height={b.height} rx="6" className={selected === b.table ? 'fill-white stroke-blue-500 dark:fill-neutral-900' : 'fill-white stroke-neutral-300 dark:fill-neutral-900 dark:stroke-neutral-600'} strokeWidth={selected === b.table ? 2 : 1} />
                   <rect width={b.width} height={HEADER_HEIGHT} rx="6" className="fill-blue-600" />
                   <rect y={HEADER_HEIGHT - 6} width={b.width} height="6" className="fill-blue-600" />
                   <text x="10" y={HEADER_HEIGHT / 2 + 4} className="fill-white text-[13px] font-semibold">
@@ -183,7 +208,7 @@ export function ErdView() {
             })}
           </g>
         </svg>
-      </div>
+      </div>}
     </div>
   )
 }
