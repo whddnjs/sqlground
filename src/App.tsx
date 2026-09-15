@@ -1,52 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Header } from './components/layout/Header'
-import type { Preset } from './db/presets'
 import { NavRail } from './components/layout/NavRail'
+import type { Preset } from './db/presets'
 import { useDbStore } from './store/db-store'
+import { useEditorStore } from './store/editor-store'
 import { useUiStore } from './store/ui-store'
 import { ComingSoon } from './views/ComingSoon'
 import { PlaygroundView } from './views/PlaygroundView'
 
-const CODE_KEY = 'sqlground:code'
-
-function loadCode(): string {
-  try {
-    return localStorage.getItem(CODE_KEY) ?? INITIAL_SQL
-  } catch {
-    return INITIAL_SQL
-  }
-}
-
-const INITIAL_SQL = `-- Cmd/Ctrl + Enter 로 실행합니다. 선택 영역이 있으면 그 부분만 실행합니다.
-CREATE TABLE users (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL,
-  age INTEGER
-);
-
-INSERT INTO users (name, age) VALUES ('민수', 25), ('지영', 31), ('현우', NULL);
-
-SELECT * FROM users;
-`
-
 export default function App() {
   const { status, loadError, tables, init, run, reset, loadPreset } = useDbStore()
+  const code = useEditorStore((s) => s.code)
   const view = useUiStore((s) => s.view)
-  const [code, setCode] = useState(loadCode)
 
   useEffect(() => {
     void init()
   }, [init])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(CODE_KEY, code)
-    } catch {
-      // 저장 불가 환경이면 무시
-    }
-  }, [code])
-
-  const handleRun = useCallback((sql: string) => run(sql), [run])
   const handleReset = useCallback(() => {
     if (window.confirm('모든 테이블과 데이터를 지우고 빈 DB 로 초기화할까요?')) void reset()
   }, [reset])
@@ -68,7 +38,7 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} />
         <main className="min-h-0 flex-1">
-          {view === 'playground' && <PlaygroundView code={code} onCodeChange={setCode} onRun={handleRun} />}
+          {view === 'playground' && <PlaygroundView />}
           {view === 'problems' && (
             <ComingSoon
               title="문제풀이"
