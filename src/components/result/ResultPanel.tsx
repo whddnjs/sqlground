@@ -1,4 +1,5 @@
 import type { ExecOutcome } from '../../db/engine'
+import { explainSqlError } from '../../lib/error-messages'
 import { ResultGrid } from './ResultGrid'
 
 export function ResultPanel({ outcome }: { outcome: ExecOutcome | null }) {
@@ -20,12 +21,18 @@ export function ResultPanel({ outcome }: { outcome: ExecOutcome | null }) {
           {r.columns.length > 0 && <ResultGrid result={r} />}
         </section>
       ))}
-      {outcome.error && (
-        <section className="rounded border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
-          <p className="font-medium text-red-700 dark:text-red-300">{outcome.error.message}</p>
-          <pre className="mt-1 overflow-x-auto font-mono text-xs text-red-600 dark:text-red-400">{outcome.error.sql}</pre>
-        </section>
-      )}
+      {outcome.error && <ErrorBox message={outcome.error.message} sql={outcome.error.sql} />}
     </div>
+  )
+}
+
+function ErrorBox({ message, sql }: { message: string; sql: string }) {
+  const hint = explainSqlError(message)
+  return (
+    <section className="rounded border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
+      <p className="font-mono text-xs text-red-600 dark:text-red-400">{message}</p>
+      {hint && <p className="mt-1.5 text-red-800 dark:text-red-200">{hint}</p>}
+      <pre className="mt-2 overflow-x-auto rounded bg-white/60 p-2 font-mono text-xs text-neutral-700 dark:bg-black/30 dark:text-neutral-300">{sql}</pre>
+    </section>
   )
 }
