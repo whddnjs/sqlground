@@ -1,5 +1,7 @@
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 import type { ExecOutcome, SqlValue, TableInfo } from '../../db/engine'
+import { downloadCsv } from '../../lib/csv'
 import { detectEditableTarget } from '../../lib/editable-select'
 import { explainSqlError } from '../../lib/error-messages'
 import { buildDelete, buildUpdate } from '../../lib/sql-builder'
@@ -76,6 +78,15 @@ function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome'
               <code className="max-w-[60%] truncate font-mono text-neutral-700 dark:text-neutral-300">{r.sql}</code>
               <span>{r.columns.length > 0 ? `${r.rows.length.toLocaleString()}행` : `${r.rowsAffected}행 영향`}</span>
               <span>{r.durationMs.toFixed(1)} ms</span>
+              {r.columns.length > 0 && (
+                <button
+                  onClick={() => downloadCsv(r, `${editable?.table.name ?? 'result'}-${i + 1}.csv`)}
+                  title="결과를 CSV 파일로 저장"
+                  className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                >
+                  <Download size={12} /> CSV
+                </button>
+              )}
             </header>
             {r.columns.length > 0 && (
               <ResultGrid
