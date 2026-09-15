@@ -27,17 +27,40 @@ export function boxHeight(table: TableInfo): number {
   return HEADER_HEIGHT + table.columns.length * ROW_HEIGHT + PADDING_BOTTOM
 }
 
-/** 테이블을 정사각형에 가까운 격자로 배치한다. 줄 높이는 그 줄에서 가장 큰 박스에 맞춘다 */
-export function gridLayout(tables: TableInfo[]): Box[] {
-  const cols = Math.max(1, Math.ceil(Math.sqrt(tables.length)))
+/**
+ * FK 방향 기준으로 열을 나눠 배치한다.
+ * 아무것도 참조하지 않는 테이블(부모)이 0열, 그것을 참조하는 테이블이 1열… 순으로 놓여 선이 대체로 왼쪽→오른쪽으로 흐른다.
+ * 열 안에서는 위에서 아래로 쌓는다. 참조 순환은 깊이 계산에서 끊는다.
+ */
+export function layeredLayout(tables: TableInfo[]): Box[] {
+  const names = new Set(tables.map((t) => t.name))
+  const depthOf = new Map<string, number>()
+  const depth = (name: string, visiting: Set<string>): number => {
+    const cached = depthOf.get(name)
+    if (cached !== undefined) return cached
+    if (visiting.has(name)) return 0
+    visiting.add(name)
+    const t = tables.find((x) => x.name === name)!
+    const parents = t.foreignKeys.map((fk) => fk.refTable).filter((r) => r !== name && names.has(r))
+    const d = parents.length === 0 ? 0 : 1 + Math.max(...parents.map((p) => depth(p, visiting)))
+    depthOf.set(name, d)
+    return d
+  }
+  for (const t of tables) depth(t.name, new Set())
+
+  const columns = new Map<number, TableInfo[]>()
+  for (const t of tables) {
+    const d = depthOf.get(t.name) ?? 0
+    columns.set(d, [...(columns.get(d) ?? []), t])
+  }
+
   const boxes: Box[] = []
-  let y = MARGIN
-  for (let i = 0; i < tables.length; i += cols) {
-    const row = tables.slice(i, i + cols)
-    row.forEach((t, j) => {
-      boxes.push({ table: t.name, x: MARGIN + j * (BOX_WIDTH + GAP_X), y, width: BOX_WIDTH, height: boxHeight(t) })
-    })
-    y += Math.max(...row.map(boxHeight)) + GAP_Y
+  for (const [d, col] of [...columns.entries()].sort((a, b) => a[0] - b[0])) {
+    let y = MARGIN
+    for (const t of col) {
+      boxes.push({ table: t.name, x: MARGIN + d * (BOX_WIDTH + GAP_X), y, width: BOX_WIDTH, height: boxHeight(t) })
+      y += boxHeight(t) + GAP_Y
+    }
   }
   return boxes
 }
