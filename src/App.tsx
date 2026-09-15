@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
 import { NavRail } from './components/layout/NavRail'
 import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
@@ -8,10 +8,12 @@ import { useDescriptionStore } from './store/description-store'
 import { useEditorStore } from './store/editor-store'
 import { applyTheme, useSettingsStore } from './store/settings-store'
 import { useUiStore } from './store/ui-store'
-import { LearnView } from './views/LearnView'
 import { PlaygroundView } from './views/PlaygroundView'
-import { ProblemsView } from './views/ProblemsView'
-import { SettingsView } from './views/SettingsView'
+
+// 첫 화면에 필요 없는 뷰는 메뉴를 눌렀을 때 내려받는다 (번들 분리)
+const LearnView = lazy(() => import('./views/LearnView').then((m) => ({ default: m.LearnView })))
+const ProblemsView = lazy(() => import('./views/ProblemsView').then((m) => ({ default: m.ProblemsView })))
+const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })))
 
 export default function App() {
   const { status, loadError, tables, init, run, reset, loadPreset } = useDbStore()
@@ -63,9 +65,11 @@ export default function App() {
         <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView />}
-          {view === 'learn' && <LearnView />}
-          {view === 'problems' && <ProblemsView />}
-          {view === 'settings' && <SettingsView />}
+          <Suspense fallback={<Centered>불러오는 중…</Centered>}>
+            {view === 'learn' && <LearnView />}
+            {view === 'problems' && <ProblemsView />}
+            {view === 'settings' && <SettingsView />}
+          </Suspense>
         </main>
       </div>
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}

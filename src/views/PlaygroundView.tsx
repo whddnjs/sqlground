@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { SqlEditor } from '../components/editor/SqlEditor'
 import { AlterTableDialog } from '../components/forms/AlterTableDialog'
@@ -11,7 +11,9 @@ import { buildDropTable, buildSelectAll } from '../lib/sql-builder'
 import { useDbStore } from '../store/db-store'
 import { useEditorStore } from '../store/editor-store'
 import { useSettingsStore } from '../store/settings-store'
-import { ErdView } from './ErdView'
+
+// 관계도는 버튼을 눌렀을 때만 내려받는다
+const ErdView = lazy(() => import('./ErdView').then((m) => ({ default: m.ErdView })))
 
 type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | { type: 'alter'; table: string } | null
 
@@ -88,7 +90,8 @@ export function PlaygroundView() {
       </Group>
 
       {showErd && (
-        <div className="absolute inset-0 z-20">
+        <div className="absolute inset-0 z-20 bg-white dark:bg-neutral-900">
+          <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-neutral-500">불러오는 중…</div>}>
           <ErdView
             onClose={() => setShowErd(false)}
             onSelectTable={selectTable}
@@ -96,6 +99,7 @@ export function PlaygroundView() {
             onAlterTable={(t) => setDialog({ type: 'alter', table: t.name })}
             onDropTable={dropTable}
           />
+          </Suspense>
         </div>
       )}
 
