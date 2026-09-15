@@ -1,4 +1,5 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js'
+import { quoteIdentifier } from '../../lib/sql-builder'
 import type {
   ColumnInfo,
   DbEngine,
@@ -127,10 +128,6 @@ export class SqliteEngine implements DbEngine {
 /** 문장 앞에 붙은 주석과 공백을 제거한다. sql.js 의 getSQL 은 앞선 주석을 포함해 돌려준다 */
 export function stripLeadingComments(sql: string): string {
   return sql.replace(/^(\s*(--[^\n]*\n?|\/\*[\s\S]*?\*\/))*\s*/, '').trim()
-}
-
-export function quoteIdentifier(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`
 }
 
 function errorMessage(e: unknown): string {
