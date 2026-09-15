@@ -12,10 +12,12 @@ export interface ColumnDef {
   unique: boolean
   /** 비어 있으면 DEFAULT 없음. 사용자가 적은 그대로 (예: 0, 'abc', CURRENT_TIMESTAMP) */
   defaultValue: string
+  /** 외래키. 없으면 null */
+  references: { table: string; column: string } | null
 }
 
 export function emptyColumn(): ColumnDef {
-  return { name: '', type: 'TEXT', primaryKey: false, autoIncrement: false, notNull: false, unique: false, defaultValue: '' }
+  return { name: '', type: 'TEXT', primaryKey: false, autoIncrement: false, notNull: false, unique: false, defaultValue: '', references: null }
 }
 
 export function quoteIdentifier(name: string): string {
@@ -54,6 +56,7 @@ export function buildCreateTable(name: string, columns: ColumnDef[]): string {
     if (c.notNull && !c.primaryKey) parts.push('NOT NULL')
     if (c.unique && !c.primaryKey) parts.push('UNIQUE')
     if (c.defaultValue.trim() !== '') parts.push(`DEFAULT ${c.defaultValue.trim()}`)
+    if (c.references) parts.push(`REFERENCES ${identifier(c.references.table)}(${identifier(c.references.column)})`)
     return parts.join(' ')
   })
   return `CREATE TABLE ${identifier(name)} (\n${lines.join(',\n')}\n);`

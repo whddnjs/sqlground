@@ -1,15 +1,20 @@
 import { Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { SQLITE_TYPES, buildCreateTable, emptyColumn, type ColumnDef } from '../../lib/sql-builder'
+import type { TableInfo } from '../../db/engine'
+import { SQLITE_TYPES, buildCreateTable, emptyColumn, type ColumnDef, type SqliteType } from '../../lib/sql-builder'
 import { DialogActions, Modal, SqlPreview, inputClass } from '../ui/Modal'
 
 interface Props {
+  /** 참조(FK) 대상으로 고를 수 있는 기존 테이블 */
+  tables: TableInfo[]
   onClose(): void
   onInsert(sql: string): void
   onRun(sql: string): void
 }
 
-export function CreateTableDialog({ onClose, onInsert, onRun }: Props) {
+const REF_SEP = '\t'
+
+export function CreateTableDialog({ tables, onClose, onInsert, onRun }: Props) {
   const [name, setName] = useState('')
   const [columns, setColumns] = useState<ColumnDef[]>([
     { ...emptyColumn(), name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true },
@@ -45,11 +50,12 @@ export function CreateTableDialog({ onClose, onInsert, onRun }: Props) {
           <tr>
             <th className="pb-1 font-medium">컬럼 이름</th>
             <th className="pb-1 font-medium">타입</th>
-            <th className="pb-1 text-center font-medium" title="PRIMARY KEY">PK</th>
-            <th className="pb-1 text-center font-medium" title="AUTOINCREMENT (INTEGER PK 만)">자동증가</th>
-            <th className="pb-1 text-center font-medium" title="NOT NULL">필수</th>
-            <th className="pb-1 text-center font-medium" title="UNIQUE">유일</th>
-            <th className="pb-1 font-medium">기본값</th>
+            <th className="px-1 pb-1 text-center font-medium whitespace-nowrap" title="PRIMARY KEY">PK</th>
+            <th className="px-1 pb-1 text-center font-medium whitespace-nowrap" title="AUTOINCREMENT (INTEGER PK 만)">자동증가</th>
+            <th className="px-1 pb-1 text-center font-medium whitespace-nowrap" title="NOT NULL">필수</th>
+            <th className="px-1 pb-1 text-center font-medium whitespace-nowrap" title="UNIQUE">유일</th>
+            <th className="pb-1 pl-2 font-medium whitespace-nowrap">기본값</th>
+            <th className="pb-1 font-medium whitespace-nowrap" title="FOREIGN KEY. 다른 테이블의 컬럼을 참조">참조 (FK)</th>
             <th />
           </tr>
         </thead>
@@ -66,20 +72,47 @@ export function CreateTableDialog({ onClose, onInsert, onRun }: Props) {
                   ))}
                 </select>
               </td>
-              <td className="py-1 text-center">
+              <td className="px-1 py-1 text-center">
                 <input type="checkbox" checked={c.primaryKey} onChange={(e) => update(i, { primaryKey: e.target.checked, autoIncrement: e.target.checked && c.type === 'INTEGER' })} />
               </td>
-              <td className="py-1 text-center">
+              <td className="px-1 py-1 text-center">
                 <input type="checkbox" checked={c.autoIncrement} disabled={!c.primaryKey || c.type !== 'INTEGER'} onChange={(e) => update(i, { autoIncrement: e.target.checked })} />
               </td>
-              <td className="py-1 text-center">
+              <td className="px-1 py-1 text-center">
                 <input type="checkbox" checked={c.notNull} disabled={c.primaryKey} onChange={(e) => update(i, { notNull: e.target.checked })} />
               </td>
-              <td className="py-1 text-center">
+              <td className="px-1 py-1 text-center">
                 <input type="checkbox" checked={c.unique} disabled={c.primaryKey} onChange={(e) => update(i, { unique: e.target.checked })} />
               </td>
               <td className="py-1 pr-2">
                 <input value={c.defaultValue} onChange={(e) => update(i, { defaultValue: e.target.value })} placeholder="예: 0, 'N', CURRENT_TIMESTAMP" className={inputClass} />
+              </td>
+              <td className="py-1 pr-2">
+                <select
+                  value={c.references ? c.references.table + REF_SEP + c.references.column : ''}
+                  disabled={tables.length === 0}
+                  title={tables.length === 0 ? '참조할 테이블이 아직 없습니다' : undefined}
+                  onChange={(e) => {
+                    if (e.target.value === '') return update(i, { references: null })
+                    const [table, column] = e.target.value.split(REF_SEP)
+                    const refType = tables.find((t) => t.name === table)?.columns.find((col) => col.name === column)?.type.toUpperCase()
+                    const type = SQLITE_TYPES.find((t) => t === refType) as SqliteType | undefined
+                    update(i, { references: { table, column }, ...(type ? { type } : {}) })
+                  }}
+                  className={inputClass}
+                >
+                  <option value="">없음</option>
+                  {tables.map((t) => (
+                    <optgroup key={t.name} label={t.name}>
+                      {[...t.columns].sort((a, b) => Number(b.primaryKey) - Number(a.primaryKey)).map((col) => (
+                        <option key={col.name} value={t.name + REF_SEP + col.name}>
+                          {t.name}.{col.name}
+                          {col.primaryKey ? ' (PK)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </td>
               <td className="py-1">
                 <button

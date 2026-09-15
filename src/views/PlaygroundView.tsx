@@ -68,7 +68,7 @@ export function PlaygroundView() {
         </Panel>
       </Group>
 
-      {dialog?.type === 'create' && <CreateTableDialog onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
+      {dialog?.type === 'create' && <CreateTableDialog tables={tables} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
       {dialog?.type === 'insert' && <InsertRowDialog table={dialog.table} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
     </>
   )

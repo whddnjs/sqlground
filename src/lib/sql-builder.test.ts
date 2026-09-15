@@ -9,9 +9,10 @@ describe('sql-builder', () => {
       { ...emptyColumn(), name: 'email', type: 'TEXT', notNull: true, unique: true },
       { ...emptyColumn(), name: 'age', type: 'INTEGER', defaultValue: '0' },
       { ...emptyColumn(), name: 'order', type: 'TEXT' },
+      { ...emptyColumn(), name: 'team_id', type: 'INTEGER', notNull: true, references: { table: 'teams', column: 'id' } },
     ])
     expect(sql).toBe(
-      'CREATE TABLE users (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  email TEXT NOT NULL UNIQUE,\n  age INTEGER DEFAULT 0,\n  "order" TEXT\n);',
+      'CREATE TABLE users (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  email TEXT NOT NULL UNIQUE,\n  age INTEGER DEFAULT 0,\n  "order" TEXT,\n  team_id INTEGER NOT NULL REFERENCES teams(id)\n);',
     )
   })
 
@@ -42,15 +43,18 @@ describe('sql-builder', () => {
   it('생성한 SQL 이 실제 엔진에서 실행된다', async () => {
     const engine = new SqliteEngine()
     await engine.init()
+    engine.exec('CREATE TABLE teams (id INTEGER PRIMARY KEY)')
     const create = buildCreateTable('t', [
       { ...emptyColumn(), name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true },
       { ...emptyColumn(), name: 'name', type: 'TEXT', notNull: true },
+      { ...emptyColumn(), name: 'team_id', type: 'INTEGER', references: { table: 'teams', column: 'id' } },
     ])
     const insert = buildInsert('t', [{ column: 'name', type: 'TEXT', value: "O'Brien" }])
     const update = buildUpdate({ table: 't', pkColumn: 'id', pkValue: 1 }, 'name', 'TEXT', 'Kim')
     const { results, error } = engine.exec([create, insert, update, buildSelectAll('t')].join('\n'))
     expect(error).toBeUndefined()
-    expect(results[3].rows).toEqual([[1, 'Kim']])
+    expect(results[3].rows).toEqual([[1, 'Kim', null]])
+    expect(engine.getTables().find((t) => t.name === 't')?.foreignKeys).toEqual([{ column: 'team_id', refTable: 'teams', refColumn: 'id' }])
     expect(engine.exec(buildDelete({ table: 't', pkColumn: 'id', pkValue: 1 })).results[0].rowsAffected).toBe(1)
   })
 })
