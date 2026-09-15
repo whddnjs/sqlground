@@ -11,7 +11,7 @@ interface Item {
 const MAIN: Item[] = [
   { view: 'playground', label: '연습장', icon: Database },
   { view: 'learn', label: '학습', icon: BookOpen },
-  { view: 'problems', label: '문제풀이', icon: ListChecks, comingSoon: true },
+  { view: 'problems', label: '문제풀이', icon: ListChecks },
 ]
 
 const BOTTOM: Item[] = [{ view: 'settings', label: '설정', icon: Settings }]

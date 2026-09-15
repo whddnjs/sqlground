@@ -8,9 +8,9 @@ import { useDescriptionStore } from './store/description-store'
 import { useEditorStore } from './store/editor-store'
 import { applyTheme, useSettingsStore } from './store/settings-store'
 import { useUiStore } from './store/ui-store'
-import { ComingSoon } from './views/ComingSoon'
 import { LearnView } from './views/LearnView'
 import { PlaygroundView } from './views/PlaygroundView'
+import { ProblemsView } from './views/ProblemsView'
 import { SettingsView } from './views/SettingsView'
 
 export default function App() {
@@ -64,13 +64,7 @@ export default function App() {
         <main className="relative min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView />}
           {view === 'learn' && <LearnView />}
-          {view === 'problems' && (
-            <ComingSoon
-              title="문제풀이"
-              description="단계별 SQL 문제를 풀고 정답 쿼리 결과와 비교합니다."
-              planned={['난이도별 문제 목록 (기초 조회 → JOIN → 집계 → 서브쿼리)', '내 쿼리 결과와 정답 결과 자동 비교', '풀이 진행도 저장']}
-            />
-          )}
+          {view === 'problems' && <ProblemsView />}
           {view === 'settings' && <SettingsView />}
         </main>
       </div>
