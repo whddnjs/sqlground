@@ -21,13 +21,9 @@ export function SqlEditor({ value, onChange, onRun, tables }: Props) {
       sql({ dialect: SQLite, schema, upperCaseKeywords: true }),
       Prec.highest(
         keymap.of([
-          {
-            key: 'Mod-Enter',
-            run: (view) => {
-              onRun(sqlToRun(view))
-              return true
-            },
-          },
+          // Mac 에서는 Cmd+Enter 와 Ctrl+Enter 둘 다 실행되게 한다
+          { key: 'Mod-Enter', run: (view) => (onRun(sqlToRun(view)), true) },
+          { key: 'Ctrl-Enter', run: (view) => (onRun(sqlToRun(view)), true) },
         ]),
       ),
     ]

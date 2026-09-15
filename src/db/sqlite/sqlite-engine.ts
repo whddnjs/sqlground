@@ -4,6 +4,7 @@ import type {
   ColumnInfo,
   DbEngine,
   ExecOutcome,
+  ForeignKeyInfo,
   QueryResult,
   SqlValue,
   TableInfo,
@@ -73,7 +74,22 @@ export class SqliteEngine implements DbEngine {
       .exec(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
       .flatMap((r) => r.values.map((v) => String(v[0])))
 
-    return names.map((name) => ({ name, columns: this.getColumns(db, name) }))
+    return names.map((name) => ({ name, columns: this.getColumns(db, name), foreignKeys: this.getForeignKeys(db, name) }))
+  }
+
+  private getForeignKeys(db: Database, table: string): ForeignKeyInfo[] {
+    const stmt = db.prepare(`PRAGMA foreign_key_list(${quoteIdentifier(table)})`)
+    const keys: ForeignKeyInfo[] = []
+    try {
+      while (stmt.step()) {
+        const row = stmt.getAsObject()
+        // to 가 null 이면 참조 테이블의 PK 를 가리킨다
+        keys.push({ column: String(row.from), refTable: String(row.table), refColumn: row.to === null ? '' : String(row.to) })
+      }
+    } finally {
+      stmt.free()
+    }
+    return keys
   }
 
   private getColumns(db: Database, table: string): ColumnInfo[] {

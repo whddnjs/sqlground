@@ -1,5 +1,8 @@
-import { Eye, Plus, Trash2 } from 'lucide-react'
-import type { TableInfo } from '../../db/engine'
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import type { ColumnInfo, TableInfo } from '../../db/engine'
+import { typeLabel } from '../../lib/type-labels'
+import { useDescriptionStore } from '../../store/description-store'
 
 interface Props {
   tables: TableInfo[]
@@ -47,16 +50,7 @@ export function SchemaBrowser({ tables, onCreateTable, onSelectTable, onInsertRo
                 </summary>
                 <ul className="ml-4 border-l border-neutral-200 pl-2 dark:border-neutral-700">
                   {t.columns.map((c) => (
-                    <li key={c.name} className="flex justify-between gap-2 py-0.5 font-mono text-xs">
-                      <span>
-                        {c.primaryKey && <span className="mr-1 text-amber-600">PK</span>}
-                        {c.name}
-                      </span>
-                      <span className="text-neutral-400">
-                        {c.type}
-                        {c.notNull && ' !'}
-                      </span>
-                    </li>
+                    <ColumnRow key={c.name} table={t} column={c} />
                   ))}
                 </ul>
               </details>
@@ -65,6 +59,60 @@ export function SchemaBrowser({ tables, onCreateTable, onSelectTable, onInsertRo
         </ul>
       )}
     </div>
+  )
+}
+
+function ColumnRow({ table, column: c }: { table: TableInfo; column: ColumnInfo }) {
+  const desc = useDescriptionStore((s) => s.descriptions[`${table.name}.${c.name}`] ?? '')
+  const setDesc = useDescriptionStore((s) => s.set)
+  const [editing, setEditing] = useState<string | null>(null)
+  const isFk = table.foreignKeys.some((fk) => fk.column === c.name)
+  const fk = table.foreignKeys.find((fk) => fk.column === c.name)
+
+  const save = () => {
+    if (editing !== null) setDesc(table.name, c.name, editing)
+    setEditing(null)
+  }
+
+  return (
+    <li className="group/col py-0.5 text-xs">
+      <div className="flex items-center justify-between gap-2 font-mono">
+        <span className="min-w-0 truncate" title={fk ? `${fk.refTable}.${fk.refColumn || 'PK'} 참조` : undefined}>
+          {c.primaryKey && <span className="mr-1 text-amber-600">PK</span>}
+          {isFk && !c.primaryKey && <span className="mr-1 text-blue-600">FK</span>}
+          {c.name}
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          <span className="text-neutral-400" title={`${typeLabel(c.type)}${c.notNull ? ' · 필수(NOT NULL)' : ''}`}>
+            {c.type}
+            {c.notNull && ' !'}
+          </span>
+          <button
+            title="이 컬럼이 무엇인지 한글로 메모"
+            onClick={() => setEditing(desc)}
+            className="rounded p-0.5 text-neutral-300 opacity-0 group-hover/col:opacity-100 hover:text-neutral-700 dark:hover:text-neutral-200"
+          >
+            <Pencil size={11} />
+          </button>
+        </span>
+      </div>
+      {editing !== null ? (
+        <input
+          autoFocus
+          value={editing}
+          onChange={(e) => setEditing(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+            if (e.key === 'Escape') setEditing(null)
+          }}
+          placeholder="예: 고객 이름"
+          className="mt-0.5 w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-[11px] focus:outline-none dark:bg-neutral-800"
+        />
+      ) : (
+        desc && <p className="truncate text-[11px] text-neutral-500 dark:text-neutral-400" title={desc}>{desc}</p>
+      )}
+    </li>
   )
 }
 

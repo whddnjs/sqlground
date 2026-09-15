@@ -30,9 +30,16 @@ export interface ColumnInfo {
   defaultValue: string | null
 }
 
+export interface ForeignKeyInfo {
+  column: string
+  refTable: string
+  refColumn: string
+}
+
 export interface TableInfo {
   name: string
   columns: ColumnInfo[]
+  foreignKeys: ForeignKeyInfo[]
 }
 
 export interface DbEngine {

@@ -5,6 +5,27 @@ export const SHOP_PRESET: Preset = {
   name: '쇼핑몰',
   description: '고객, 상품, 주문, 주문 상품 4개 테이블. JOIN, GROUP BY, 서브쿼리 연습용',
   tables: ['customers', 'products', 'orders', 'order_items'],
+  descriptions: {
+    'customers.id': '고객 번호',
+    'customers.name': '고객 이름',
+    'customers.email': '이메일 (중복 불가)',
+    'customers.city': '거주 도시',
+    'customers.joined_at': '가입일 (YYYY-MM-DD)',
+    'products.id': '상품 번호',
+    'products.name': '상품 이름',
+    'products.category': '카테고리 (전자기기, 사무용품, 가구, 생활용품, 도서)',
+    'products.price': '판매가 (원)',
+    'products.stock': '재고 수량',
+    'orders.id': '주문 번호',
+    'orders.customer_id': '주문한 고객 (customers.id 참조)',
+    'orders.ordered_at': '주문일 (YYYY-MM-DD)',
+    'orders.status': '주문 상태 (paid 결제완료, shipped 배송중, delivered 배송완료, cancelled 취소)',
+    'order_items.id': '주문 상품 번호',
+    'order_items.order_id': '속한 주문 (orders.id 참조)',
+    'order_items.product_id': '상품 (products.id 참조)',
+    'order_items.quantity': '수량',
+    'order_items.unit_price': '주문 당시 단가 (원)',
+  },
   sql: `DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS products;

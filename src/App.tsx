@@ -3,15 +3,18 @@ import { Header } from './components/layout/Header'
 import { NavRail } from './components/layout/NavRail'
 import type { Preset } from './db/presets'
 import { useDbStore } from './store/db-store'
+import { useDescriptionStore } from './store/description-store'
 import { useEditorStore } from './store/editor-store'
 import { useUiStore } from './store/ui-store'
 import { ComingSoon } from './views/ComingSoon'
+import { ErdView } from './views/ErdView'
 import { PlaygroundView } from './views/PlaygroundView'
 
 export default function App() {
   const { status, loadError, tables, init, run, reset, loadPreset } = useDbStore()
   const code = useEditorStore((s) => s.code)
   const view = useUiStore((s) => s.view)
+  const setDescriptions = useDescriptionStore((s) => s.setMany)
 
   useEffect(() => {
     void init()
@@ -25,8 +28,9 @@ export default function App() {
       const existing = tables.map((t) => t.name).filter((n) => preset.tables.includes(n))
       if (existing.length > 0 && !window.confirm(`이미 있는 테이블(${existing.join(', ')})을 샘플 데이터로 덮어씁니다. 계속할까요?`)) return
       loadPreset(preset)
+      setDescriptions(preset.descriptions)
     },
-    [tables, loadPreset],
+    [tables, loadPreset, setDescriptions],
   )
 
   if (status === 'loading') return <Centered>DB 엔진을 불러오는 중…</Centered>
@@ -39,6 +43,7 @@ export default function App() {
         <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} />
         <main className="min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView />}
+          {view === 'erd' && <ErdView />}
           {view === 'problems' && (
             <ComingSoon
               title="문제풀이"

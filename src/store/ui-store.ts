@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type View = 'playground' | 'problems' | 'settings'
+export type View = 'playground' | 'erd' | 'problems' | 'settings'
 
 interface UiState {
   view: View

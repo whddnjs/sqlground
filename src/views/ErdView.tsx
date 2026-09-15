@@ -1,0 +1,141 @@
+import { RotateCcw } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import {
+  HEADER_HEIGHT,
+  ROW_HEIGHT,
+  canvasSize,
+  columnY,
+  edgeEndpoints,
+  edgesOf,
+  gridLayout,
+  type Box,
+} from '../lib/erd-layout'
+import { useDbStore } from '../store/db-store'
+import { useDescriptionStore } from '../store/description-store'
+
+export function ErdView() {
+  const tables = useDbStore((s) => s.tables)
+  const describe = useDescriptionStore((s) => s.get)
+  // 드래그로 옮긴 위치만 상태로 두고, 기본 배치는 테이블 구성에서 매번 계산한다
+  const [moved, setMoved] = useState<Record<string, { x: number; y: number }>>({})
+  const drag = useRef<{ table: string; dx: number; dy: number } | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  const boxes: Box[] = useMemo(
+    () => gridLayout(tables).map((b) => (moved[b.table] ? { ...b, ...moved[b.table] } : b)),
+    [tables, moved],
+  )
+
+  const byName = useMemo(() => new Map(tables.map((t) => [t.name, t])), [tables])
+  const boxOf = (name: string) => boxes.find((b) => b.table === name)
+  const edges = useMemo(() => edgesOf(tables), [tables])
+  const size = canvasSize(boxes)
+
+  const toSvgPoint = (e: React.PointerEvent) => {
+    const rect = svgRef.current!.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
+  if (tables.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-neutral-500">
+        테이블이 없습니다. 연습장에서 테이블을 만들거나 샘플을 불러오면 관계도가 그려집니다.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-700">
+        <span>박스를 드래그해서 옮길 수 있습니다. 선은 FOREIGN KEY(REFERENCES) 관계입니다.</span>
+        <button onClick={() => setMoved({})} className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <RotateCcw size={12} /> 배치 초기화
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto bg-neutral-50 dark:bg-neutral-950">
+        <svg
+          ref={svgRef}
+          width={Math.max(size.width, 600)}
+          height={Math.max(size.height, 400)}
+          className="select-none"
+          onPointerMove={(e) => {
+            if (!drag.current) return
+            const p = toSvgPoint(e)
+            const { table, dx, dy } = drag.current
+            setMoved((m) => ({ ...m, [table]: { x: Math.max(0, p.x - dx), y: Math.max(0, p.y - dy) } }))
+          }}
+          onPointerUp={() => (drag.current = null)}
+          onPointerLeave={() => (drag.current = null)}
+        >
+          <defs>
+            <marker id="erd-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M0,1 L9,5 L0,9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </marker>
+          </defs>
+
+          <g className="text-neutral-400 dark:text-neutral-500">
+            {edges.map((e, i) => {
+              const from = boxOf(e.fromTable)
+              const to = boxOf(e.toTable)
+              const ft = byName.get(e.fromTable)
+              const tt = byName.get(e.toTable)
+              if (!from || !to || !ft || !tt) return null
+              const { start, end } = edgeEndpoints(from, columnY(ft, e.fromColumn), to, columnY(tt, e.toColumn))
+              const bend = Math.max(40, Math.abs(end.x - start.x) / 2)
+              const sDir = start.x >= from.x + from.width ? 1 : -1
+              const eDir = end.x >= to.x + to.width ? 1 : -1
+              const d = `M${start.x},${start.y} C${start.x + sDir * bend},${start.y} ${end.x + eDir * bend},${end.y} ${end.x},${end.y}`
+              return (
+                <g key={i}>
+                  <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" markerEnd="url(#erd-arrow)" />
+                  <circle cx={start.x} cy={start.y} r="3" fill="currentColor" />
+                </g>
+              )
+            })}
+          </g>
+
+          {boxes.map((b) => {
+            const t = byName.get(b.table)
+            if (!t) return null
+            return (
+              <g
+                key={b.table}
+                transform={`translate(${b.x},${b.y})`}
+                className="cursor-grab active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  const p = toSvgPoint(e)
+                  drag.current = { table: b.table, dx: p.x - b.x, dy: p.y - b.y }
+                }}
+              >
+                <rect width={b.width} height={b.height} rx="6" className="fill-white stroke-neutral-300 dark:fill-neutral-900 dark:stroke-neutral-600" strokeWidth="1" />
+                <rect width={b.width} height={HEADER_HEIGHT} rx="6" className="fill-blue-600" />
+                <rect y={HEADER_HEIGHT - 6} width={b.width} height="6" className="fill-blue-600" />
+                <text x="10" y={HEADER_HEIGHT / 2 + 4} className="fill-white text-[13px] font-semibold">
+                  {t.name}
+                </text>
+                {t.columns.map((c, i) => {
+                  const y = HEADER_HEIGHT + i * ROW_HEIGHT
+                  const isFk = t.foreignKeys.some((fk) => fk.column === c.name)
+                  const desc = describe(t.name, c.name)
+                  return (
+                    <g key={c.name} transform={`translate(0,${y})`}>
+                      <title>{desc ? `${c.name}: ${desc}` : c.name}</title>
+                      <text x="10" y={ROW_HEIGHT / 2 + 4} className="fill-neutral-800 font-mono text-[11px] dark:fill-neutral-200">
+                        {c.primaryKey && <tspan className="fill-amber-600 font-sans font-semibold">PK </tspan>}
+                        {isFk && !c.primaryKey && <tspan className="fill-blue-600 font-sans font-semibold">FK </tspan>}
+                        {c.name}
+                      </text>
+                      <text x={b.width - 10} y={ROW_HEIGHT / 2 + 4} textAnchor="end" className="fill-neutral-400 font-mono text-[10px]">
+                        {c.type}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+    </div>
+  )
+}

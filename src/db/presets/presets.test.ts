@@ -11,6 +11,14 @@ describe.each(PRESETS)('프리셋 $name', (preset) => {
     expect(engine.getTables().map((t) => t.name).sort()).toEqual([...preset.tables].sort())
   })
 
+  it('컬럼 설명은 실제 있는 테이블.컬럼만 가리킨다', async () => {
+    const engine = new SqliteEngine()
+    await engine.init()
+    engine.exec(preset.sql)
+    const known = new Set(engine.getTables().flatMap((t) => t.columns.map((c) => `${t.name}.${c.name}`)))
+    for (const key of Object.keys(preset.descriptions)) expect(known.has(key), key).toBe(true)
+  })
+
   it('두 번 로드해도 에러가 없다 (DROP IF EXISTS)', async () => {
     const engine = new SqliteEngine()
     await engine.init()

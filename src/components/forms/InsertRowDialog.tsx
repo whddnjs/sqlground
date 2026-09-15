@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { TableInfo } from '../../db/engine'
 import { buildInsert, type InsertValue } from '../../lib/sql-builder'
+import { useDescriptionStore } from '../../store/description-store'
 import { DialogActions, Modal, SqlPreview, inputClass } from '../ui/Modal'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Field {
 }
 
 export function InsertRowDialog({ table, onClose, onInsert, onRun }: Props) {
+  const describe = useDescriptionStore((s) => s.get)
   const [fields, setFields] = useState<Record<string, Field>>(() =>
     Object.fromEntries(table.columns.map((c) => [c.name, { value: '', isNull: false }])),
   )
@@ -57,6 +59,7 @@ export function InsertRowDialog({ table, onClose, onInsert, onRun }: Props) {
                 <span className="text-neutral-400">{c.type}</span>
                 {c.primaryKey && <span className="text-amber-600">PK</span>}
                 {c.notNull && !c.primaryKey && <span className="text-neutral-400">NOT NULL</span>}
+                {describe(table.name, c.name) && <span className="text-neutral-500">· {describe(table.name, c.name)}</span>}
               </span>
               <span className="flex items-center gap-2">
                 <input

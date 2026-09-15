@@ -8,8 +8,9 @@ const users: TableInfo = {
     { name: 'id', type: 'INTEGER', notNull: false, primaryKey: true, defaultValue: null },
     { name: 'name', type: 'TEXT', notNull: true, primaryKey: false, defaultValue: null },
   ],
+  foreignKeys: [],
 }
-const nopk: TableInfo = { name: 'logs', columns: [{ name: 'msg', type: 'TEXT', notNull: false, primaryKey: false, defaultValue: null }] }
+const nopk: TableInfo = { name: 'logs', columns: [{ name: 'msg', type: 'TEXT', notNull: false, primaryKey: false, defaultValue: null }], foreignKeys: [] }
 const tables = [users, nopk]
 
 function result(sql: string, columns: string[]): QueryResult {

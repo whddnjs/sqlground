@@ -6,4 +6,6 @@ export interface Preset {
   tables: string[]
   /** DROP TABLE IF EXISTS 로 시작하는 자기완결 SQL */
   sql: string
+  /** "테이블.컬럼" → 한글 설명 */
+  descriptions: Record<string, string>
 }

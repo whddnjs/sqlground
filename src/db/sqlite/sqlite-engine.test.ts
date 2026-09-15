@@ -73,6 +73,18 @@ describe('SqliteEngine', () => {
     ])
   })
 
+  it('getTables 는 외래키 정보를 돌려준다', () => {
+    engine.exec(`
+      CREATE TABLE a (id INTEGER PRIMARY KEY);
+      CREATE TABLE b (id INTEGER PRIMARY KEY, a_id INTEGER REFERENCES a(id), a2 INTEGER REFERENCES a);
+    `)
+    const b = engine.getTables().find((t) => t.name === 'b')!
+    expect(b.foreignKeys).toEqual([
+      { column: 'a2', refTable: 'a', refColumn: '' },
+      { column: 'a_id', refTable: 'a', refColumn: 'id' },
+    ])
+  })
+
   it('export 한 바이너리를 import 하면 데이터가 복원된다', async () => {
     engine.exec(`CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('hello');`)
     const snapshot = engine.export()
