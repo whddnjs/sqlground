@@ -1,0 +1,238 @@
+# SQLGround 설계 문서
+
+> 설치 없이 브라우저에서 바로 SQL을 연습하는 웹사이트
+> 작성일: 2026-09-15
+
+## 1. 배경과 목적
+
+DB 초보자가 SQL을 처음 연습하려면 개인 PC에 DB를 설치하고, 에디터도 설치하고, DB 종류가 바뀌면 또 설치해야 한다. 이 번거로움을 없애기 위해 **브라우저 안에서 모든 것이 동작하는 SQL 연습장**을 만든다.
+
+- 설치 없음. 링크만 열면 바로 사용
+- 쿼리는 서버가 아니라 **브라우저 안에서 실행**
+- 초보자를 위해 SQL을 몰라도 UI로 테이블 생성과 데이터 조작이 가능
+- DB 종류는 하나로 시작하고 나중에 추가
+
+## 2. 핵심 기술 결정
+
+### 2.1 브라우저 DB 엔진
+
+브라우저에서 실제로 실행 가능한 엔진은 세 가지다. MySQL은 WASM 버전이 없어 브라우저 실행이 불가능하다.
+
+| 엔진 | 라이브러리 | 특징 |
+|---|---|---|
+| SQLite | sql.js | 가볍고 안정적. 문법 단순. **1차 선택** |
+| PostgreSQL | PGlite (WASM) | 실무 문법 그대로. 약 3MB. 2차 추가 후보 |
+| DuckDB | duckdb-wasm | 분석 쿼리 특화. 연습 목적엔 과함 |
+
+**결정: SQLite(sql.js)로 시작.** 가장 빠르게 프로토타입을 띄울 수 있다.
+
+엔진 교체에 대비해 UI는 엔진에 직접 의존하지 않고 `DbEngine` 인터페이스만 바라본다.
+
+```ts
+interface DbEngine {
+  init(): Promise<void>
+  exec(sql: string): ExecOutcome          // 여러 문장 실행. 문장별 결과 + 실패 시 에러
+  getTables(): TableInfo[]                // 스키마 브라우저용
+  getColumns(table: string): ColumnInfo[]
+  export(): Uint8Array                    // 영속화·다운로드용
+  import(data: Uint8Array): Promise<void>
+}
+```
+
+### 2.2 프레임워크
+
+| 기준 | Next.js | Vite + React | Angular |
+|---|---|---|---|
+| SSR/서버 기능 | 있음. 이 프로젝트엔 불필요, 오히려 걸림돌 | 없음. 적합 | 없음. 적합 |
+| sql.js WASM 로딩 | ssr:false 우회, wasm 경로 문제 | `?url` import로 해결. 가장 쉬움 | assets 등록. 쉬운 편 |
+| 정적 배포 | `output: 'export'` 필요 | 그대로 됨 | 그대로 됨 |
+| 에디터·그리드·패널 라이브러리 | 풍부 | 풍부 | 상대적으로 적음 |
+| 설정 복잡도 | 높음 | 낮음 | 중간 |
+
+**결정: Vite + React + TypeScript.**
+
+- Next.js 제외 이유: 이 앱은 브라우저에서만 돈다. Next.js의 장점은 전부 서버 쪽에 있어 SSR 우회 비용만 생긴다.
+- Angular 제외 이유: 가능은 하나 에디터, 그리드, 리사이즈 패널을 직접 래핑해야 하는 부분이 많다.
+- 나중에 Next.js가 필요해져도(공유 페이지 SEO 등) 컴포넌트, 스토어, `DbEngine` 레이어는 그대로 옮길 수 있다.
+
+### 2.3 로그인이 들어올 경우
+
+로그인이 추가되어도 프레임워크 결정은 바뀌지 않는다. 필요한 것은 "사용자별 작은 데이터 저장"이고, **Supabase**(Auth + Postgres + RLS + Storage)로 브라우저에서 직접 처리한다. 서버 로직이 꼭 필요해지면(문제 채점 은닉 등) NestJS를 별도 API로 붙인다.
+
+## 3. 기술 스택
+
+| 역할 | 선택 |
+|---|---|
+| 빌드 | Vite + React + TypeScript |
+| DB | sql.js (`DbEngine` 인터페이스 뒤에 숨김) |
+| SQL 에디터 | CodeMirror 6 (`@uiw/react-codemirror` + `@codemirror/lang-sql`) |
+| 결과 그리드 | TanStack Table |
+| 레이아웃 | `react-resizable-panels` |
+| UI | Tailwind + shadcn/ui |
+| 상태 관리 | zustand |
+| 영속화 | IndexedDB (`idb-keyval`, DB 바이너리 저장) |
+| 라우팅 | 없음. 단일 화면 |
+| 배포 | 정적 호스팅 (Vercel 또는 GitHub Pages). 백엔드 없음, 비용 0 |
+
+## 4. 기능 범위
+
+### 4.1 1차 범위 (MVP)
+
+**쿼리 실행**
+- SQL 에디터에서 작성한 쿼리를 브라우저에서 실행
+- 문법 강조, 테이블·컬럼 자동완성
+- 쿼리 실행 히스토리
+
+**결과 그리드**
+- 행 수, 실행 시간 표시
+- 결과가 많을 때 페이지네이션
+- 셀 더블클릭으로 수정하면 UPDATE 실행 (UI 편집과 통합)
+
+**UI 모드 (초보자용)**
+- 테이블 생성 폼 (컬럼명, 타입, PK, NOT NULL 등)
+- 데이터 추가, 수정, 삭제 폼
+- **UI 조작 시 생성된 SQL을 화면에 노출** → UI 모드와 쿼리 모드를 잇는 교육적 핵심이자 이 사이트의 차별점
+
+**스키마 브라우저**
+- 사이드바에 테이블 목록, 컬럼, 타입 상시 표시
+
+**샘플 데이터셋**
+- 빈 DB에서는 SELECT 연습이 불가능하므로 버튼 하나로 프리셋 로드
+- 예: 쇼핑몰(고객, 주문, 상품), 학교(학생, 수업, 성적)
+
+**상태 저장과 복구**
+- IndexedDB에 DB 바이너리 저장. 새로고침해도 유지
+- 초기화 버튼
+- 실행 전 상태로 되돌리기 (스냅샷). 초보자는 DROP TABLE을 반드시 실수한다
+- DB 파일 내보내기 / 가져오기
+
+**친절한 에러**
+- 엔진 원문 에러 아래에 한글 설명 한 줄
+- 자주 나오는 에러 10개 정도만 매핑
+
+### 4.2 나중 범위
+
+- 문제 풀이 모드 (정답 쿼리 결과와 비교하는 방식)
+- PostgreSQL(PGlite) 엔진 추가
+- ERD 시각화
+- URL로 DB 상태 공유
+- 로그인, 클라우드 저장 (Supabase)
+
+## 5. 화면 구성 (초안)
+
+```
+┌──────────────┬──────────────────────────────────────┐
+│ 스키마       │ SQL 에디터                            │
+│ 브라우저     │ (CodeMirror)                          │
+│              │                          [실행] [되돌리기] │
+│ ▸ customers  ├──────────────────────────────────────┤
+│ ▸ orders     │ 결과 그리드 / 생성된 SQL / 에러       │
+│ ▸ products   │ (TanStack Table)                      │
+│              │                                       │
+│ [+ 테이블]   │                                       │
+│ [샘플 로드]  │                                       │
+└──────────────┴──────────────────────────────────────┘
+```
+
+- 좌측: 스키마 브라우저 + 테이블 생성, 샘플 로드 버튼
+- 우측 상단: SQL 에디터
+- 우측 하단: 결과 탭 (그리드 / UI 조작으로 생성된 SQL / 에러 / 히스토리)
+- 세 영역은 드래그로 크기 조절
+
+## 6. 폴더 구조 (초안)
+
+```
+src/
+  db/
+    engine.ts          # DbEngine 인터페이스
+    sqlite/            # sql.js 구현
+    presets/           # 샘플 데이터셋 SQL
+    snapshot.ts        # 되돌리기용 스냅샷
+    persist.ts         # IndexedDB 저장/복원
+  store/               # zustand 스토어 (스키마, 히스토리, 결과)
+  components/
+    editor/            # SQL 에디터
+    result/            # 결과 그리드, 에러 표시
+    schema/            # 스키마 브라우저
+    forms/             # 테이블 생성, 데이터 추가/수정 폼
+    layout/            # 리사이즈 패널
+  lib/
+    sql-builder.ts     # UI 조작 → SQL 문자열 생성
+    error-messages.ts  # 에러 한글 매핑
+```
+
+## 7. 배포
+
+**결정: Vercel + GitHub 연동.** 백엔드가 없으므로 `vite build` 결과물(`dist/`)만 정적 호스팅한다.
+
+| 호스팅 | 장점 | 단점 |
+|---|---|---|
+| Vercel (선택) | 설정 최소, push마다 자동 배포, PR 미리보기 URL | 무료 플랜 대역폭 100GB/월 (충분) |
+| Cloudflare Pages | 대역폭 무제한 | 설정이 조금 더 필요 |
+| GitHub Pages | 저장소만 있으면 됨 | 하위 경로라 Vite `base` 설정 필요, 미리보기 없음 |
+
+배포 흐름
+1. GitHub에 `sqlground` 저장소 생성 후 push
+2. Vercel에서 저장소 import. Vite 자동 감지
+3. 이후 `main` push마다 자동 배포
+
+주의 사항
+- sql.js의 `sql-wasm.wasm`(약 1MB)은 `application/wasm` MIME으로 서빙되어야 하며, 위 호스팅 모두 기본 지원
+- COOP/COEP 헤더는 sql.js, PGlite 모두 불필요
+- Vite가 해시 파일명을 붙이므로 캐시 문제 없음
+- 도메인은 `sqlground.vercel.app`으로 시작, 필요 시 커스텀 도메인 연결
+- 나중에 Supabase 추가 시 환경변수만 Vercel 대시보드에 등록
+
+## 8. 구현 세부 결정
+
+코드 작성 시 바로 부딪히는 항목들. 기존 프로젝트(17_suzume-jong) 관례를 따른다.
+
+### 개발 환경
+- 패키지 매니저: pnpm
+- Node 22
+- oxlint + Vitest (`pnpm lint`, `pnpm test`). Vite 8 템플릿 기본이 oxlint라 그대로 사용
+- 단위 테스트 대상: `DbEngine`, `sql-builder`, `error-messages`. UI는 수동 확인
+- 커밋: `<type>: <subject>` 형식. 단일 프로젝트이므로 scope 생략
+- GitHub 저장소명 `sqlground`, 공개 저장소
+
+### 제품 규칙
+- UI 언어: 한국어만. i18n 없음
+- 다크 모드: 시스템 설정 따름 (shadcn 기본)
+- 워크스페이스: DB 1개. 다중 DB는 나중
+
+### 쿼리 실행
+- 단축키 `Ctrl/Cmd + Enter`
+- 선택 영역이 있으면 선택 부분만, 없으면 에디터 전체 실행
+- 여러 문장이면 순서대로 실행하고 각 문장의 결과를 순서대로 표시
+- 문장 하나라도 실패하면 그 지점에서 중단하고 에러 표시
+
+### 스냅샷과 영속화
+- 실행 직전마다 `export()`로 스냅샷 저장, 최근 10개 유지 (메모리)
+- 실행 성공 후 500ms 디바운스로 IndexedDB 저장
+- "되돌리기"는 직전 스냅샷을 `import()`
+
+### 결과 그리드
+- 그리드에 최대 1,000행 로드, 페이지당 50행
+- 초과 시 "1,000행까지만 표시" 안내
+- 셀 더블클릭 편집은 PK가 있는 단일 테이블 SELECT 결과에서만 활성화
+
+### 테이블 생성 폼
+- 타입: SQLite 5종 (INTEGER, TEXT, REAL, NUMERIC, BLOB)
+- 제약: PRIMARY KEY, AUTOINCREMENT, NOT NULL, UNIQUE, DEFAULT
+- FOREIGN KEY는 폼에서 제외. 쿼리로만 가능 (2단계에서 추가)
+
+### 샘플 데이터셋
+- 1차: 쇼핑몰 1개 (`customers`, `products`, `orders`, `order_items`), 테이블당 20~50행
+- 학교 데이터셋은 쇼핑몰 완성 후 추가
+- JOIN, GROUP BY, 서브쿼리 연습이 가능한 관계 구조로 설계
+
+## 9. 다음 단계
+
+1. Vite + React + TS 프로젝트 생성
+2. sql.js 로딩 + `DbEngine` 구현 + 콘솔에서 쿼리 실행 확인
+3. 에디터 + 결과 그리드 연결
+4. 스키마 브라우저
+5. 샘플 데이터셋
+6. IndexedDB 영속화 + 스냅샷
+7. UI 모드 (테이블 생성, 데이터 조작 폼 + SQL 노출)
+8. 에러 한글 매핑
