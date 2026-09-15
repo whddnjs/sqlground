@@ -46,3 +46,20 @@ describe('쇼핑몰 프리셋', () => {
     expect(Number(results[0].rows[0][1])).toBeGreaterThan(0)
   })
 })
+
+describe('학교 프리셋', () => {
+  it('성적이 NULL 인 수강과 학기별 평균이 나온다', async () => {
+    const engine = new SqliteEngine()
+    await engine.init()
+    engine.exec(PRESETS[1].sql)
+    const nulls = engine.exec('SELECT count(*) FROM enrollments WHERE score IS NULL').results[0].rows[0][0]
+    expect(Number(nulls)).toBeGreaterThan(0)
+    const { results, error } = engine.exec(`
+      SELECT s.name, e.semester, round(avg(e.score), 1) AS avg_score
+      FROM students s JOIN enrollments e ON e.student_id = s.id
+      GROUP BY s.id, e.semester ORDER BY s.id, e.semester
+    `)
+    expect(error).toBeUndefined()
+    expect(results[0].rows.length).toBeGreaterThan(18)
+  })
+})
