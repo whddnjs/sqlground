@@ -100,3 +100,24 @@ export function buildSelectAll(table: string, limit = 100): string {
 function pkLiteral(v: string | number): string {
   return typeof v === 'number' ? String(v) : quoteString(v)
 }
+
+export function buildRenameTable(table: string, newName: string): string {
+  return `ALTER TABLE ${identifier(table)} RENAME TO ${identifier(newName)};`
+}
+
+export function buildAddColumn(table: string, column: ColumnDef): string {
+  const parts = [`${identifier(column.name)} ${column.type}`]
+  if (column.notNull) parts.push('NOT NULL')
+  if (column.unique) parts.push('UNIQUE')
+  if (column.defaultValue.trim() !== '') parts.push(`DEFAULT ${column.defaultValue.trim()}`)
+  if (column.references) parts.push(`REFERENCES ${identifier(column.references.table)}(${identifier(column.references.column)})`)
+  return `ALTER TABLE ${identifier(table)} ADD COLUMN ${parts.join(' ')};`
+}
+
+export function buildRenameColumn(table: string, column: string, newName: string): string {
+  return `ALTER TABLE ${identifier(table)} RENAME COLUMN ${identifier(column)} TO ${identifier(newName)};`
+}
+
+export function buildDropColumn(table: string, column: string): string {
+  return `ALTER TABLE ${identifier(table)} DROP COLUMN ${identifier(column)};`
+}

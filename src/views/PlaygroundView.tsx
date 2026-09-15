@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { SqlEditor } from '../components/editor/SqlEditor'
+import { AlterTableDialog } from '../components/forms/AlterTableDialog'
 import { CreateTableDialog } from '../components/forms/CreateTableDialog'
 import { InsertRowDialog } from '../components/forms/InsertRowDialog'
 import { ResultPanel } from '../components/result/ResultPanel'
@@ -10,7 +11,7 @@ import { buildDropTable, buildSelectAll } from '../lib/sql-builder'
 import { useDbStore } from '../store/db-store'
 import { useEditorStore } from '../store/editor-store'
 
-type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | null
+type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | { type: 'alter'; table: string } | null
 
 export function PlaygroundView() {
   const { tables, outcome, notice, history, run, runFromUi } = useDbStore()
@@ -41,6 +42,7 @@ export function PlaygroundView() {
               run(sql)
             }}
             onInsertRow={(t) => setDialog({ type: 'insert', table: t })}
+            onAlterTable={(t) => setDialog({ type: 'alter', table: t.name })}
             onDropTable={(t) => {
               const sql = buildDropTable(t.name)
               if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) runFromUi(sql)
@@ -70,6 +72,12 @@ export function PlaygroundView() {
 
       {dialog?.type === 'create' && <CreateTableDialog tables={tables} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
       {dialog?.type === 'insert' && <InsertRowDialog table={dialog.table} onClose={close} onInsert={insertAndClose} onRun={runAndClose} />}
+      {dialog?.type === 'alter' && (() => {
+        // 구조 변경 후에도 다이얼로그를 유지하려고 이름으로 최신 테이블을 찾는다. 이름이 바뀌면 닫는다
+        const table = tables.find((t) => t.name === dialog.table)
+        if (!table) return null
+        return <AlterTableDialog table={table} tables={tables} onClose={close} onInsert={insertAndClose} onRun={(sql) => runFromUi(sql)} />
+      })()}
     </>
   )
 }

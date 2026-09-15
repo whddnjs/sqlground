@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SqliteEngine } from '../db/sqlite/sqlite-engine'
-import { buildCreateTable, buildDelete, buildDropTable, buildInsert, buildSelectAll, buildUpdate, emptyColumn, literal } from './sql-builder'
+import { buildAddColumn, buildCreateTable, buildDelete, buildDropColumn, buildDropTable, buildInsert, buildRenameColumn, buildRenameTable, buildSelectAll, buildUpdate, emptyColumn, literal } from './sql-builder'
 
 describe('sql-builder', () => {
   it('CREATE TABLE: 제약 조건을 순서대로 붙이고 PK 에는 NOT NULL/UNIQUE 를 중복해서 붙이지 않는다', () => {
@@ -56,5 +56,26 @@ describe('sql-builder', () => {
     expect(results[3].rows).toEqual([[1, 'Kim', null]])
     expect(engine.getTables().find((t) => t.name === 't')?.foreignKeys).toEqual([{ column: 'team_id', refTable: 'teams', refColumn: 'id' }])
     expect(engine.exec(buildDelete({ table: 't', pkColumn: 'id', pkValue: 1 })).results[0].rowsAffected).toBe(1)
+  })
+
+  it('ALTER TABLE 문을 만들고 엔진에서 실행된다', async () => {
+    const engine = new SqliteEngine()
+    await engine.init()
+    engine.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)')
+    const sqls = [
+      buildAddColumn('t', { ...emptyColumn(), name: 'age', type: 'INTEGER', notNull: true, defaultValue: '0' }),
+      buildRenameColumn('t', 'name', 'full_name'),
+      buildDropColumn('t', 'age'),
+      buildRenameTable('t', 'people'),
+    ]
+    expect(sqls).toEqual([
+      'ALTER TABLE t ADD COLUMN age INTEGER NOT NULL DEFAULT 0;',
+      'ALTER TABLE t RENAME COLUMN name TO full_name;',
+      'ALTER TABLE t DROP COLUMN age;',
+      'ALTER TABLE t RENAME TO people;',
+    ])
+    expect(engine.exec(sqls.join('\n')).error).toBeUndefined()
+    const people = engine.getTables().find((x) => x.name === 'people')
+    expect(people?.columns.map((c) => c.name)).toEqual(['id', 'full_name'])
   })
 })

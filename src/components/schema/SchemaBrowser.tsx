@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Eye, Pencil, Plus, Settings2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ColumnInfo, TableInfo } from '../../db/engine'
 import { typeLabel } from '../../lib/type-labels'
@@ -9,10 +9,11 @@ interface Props {
   onCreateTable(): void
   onSelectTable(table: TableInfo): void
   onInsertRow(table: TableInfo): void
+  onAlterTable(table: TableInfo): void
   onDropTable(table: TableInfo): void
 }
 
-export function SchemaBrowser({ tables, onCreateTable, onSelectTable, onInsertRow, onDropTable }: Props) {
+export function SchemaBrowser({ tables, onCreateTable, onSelectTable, onInsertRow, onAlterTable, onDropTable }: Props) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-3 py-2">
@@ -42,6 +43,9 @@ export function SchemaBrowser({ tables, onCreateTable, onSelectTable, onInsertRo
                     </IconButton>
                     <IconButton title="행 추가 (INSERT)" onClick={() => onInsertRow(t)}>
                       <Plus size={13} />
+                    </IconButton>
+                    <IconButton title="구조 변경 (ALTER TABLE)" onClick={() => onAlterTable(t)}>
+                      <Settings2 size={13} />
                     </IconButton>
                     <IconButton title="테이블 삭제 (DROP)" onClick={() => onDropTable(t)} danger>
                       <Trash2 size={13} />
