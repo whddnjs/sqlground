@@ -1,4 +1,4 @@
-import { ChevronDown, Play, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, CircleHelp, Play, RotateCcw, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PRESETS, type Preset } from '../../db/presets'
 import { useDbStore } from '../../store/db-store'
@@ -8,9 +8,10 @@ interface Props {
   onRun(): void
   onReset(): void
   onLoadPreset(preset: Preset): void
+  onShowShortcuts(): void
 }
 
-export function Header({ onRun, onReset, onLoadPreset }: Props) {
+export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props) {
   const view = useUiStore((s) => s.view)
   const undoCount = useDbStore((s) => s.undoCount)
   const undo = useDbStore((s) => s.undo)
@@ -28,8 +29,18 @@ export function Header({ onRun, onReset, onLoadPreset }: Props) {
         <ChevronDown size={12} />
       </button>
 
+      <div className="ml-auto flex items-center gap-1">
+        <button
+          onClick={onShowShortcuts}
+          title="단축키 안내 (?)"
+          aria-label="단축키 안내"
+          className="rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+        >
+          <CircleHelp size={16} />
+        </button>
       {view === 'playground' && (
-        <div className="ml-auto flex items-center gap-1">
+        <>
+          <span className="mx-1 h-5 w-px bg-neutral-200 dark:bg-neutral-700" />
           <PresetMenu onSelect={onLoadPreset} />
           <ToolButton
             icon={<RotateCcw size={14} />}
@@ -47,8 +58,9 @@ export function Header({ onRun, onReset, onLoadPreset }: Props) {
             <Play size={14} />
             실행
           </button>
-        </div>
+        </>
       )}
+      </div>
     </header>
   )
 }

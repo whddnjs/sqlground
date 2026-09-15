@@ -1,6 +1,7 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Header } from './components/layout/Header'
 import { NavRail } from './components/layout/NavRail'
+import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
 import type { Preset } from './db/presets'
 import { useDbStore } from './store/db-store'
 import { useDescriptionStore } from './store/description-store'
@@ -25,6 +26,20 @@ export default function App() {
 
   useEffect(() => applyTheme(theme), [theme])
 
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  useEffect(() => {
+    // 입력 중이 아닐 때 ? 를 누르면 단축키 안내
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      setShowShortcuts(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const handleReset = useCallback(() => {
     if (window.confirm('모든 테이블과 데이터를 지우고 빈 DB 로 초기화할까요?')) void reset()
   }, [reset])
@@ -45,7 +60,7 @@ export default function App() {
     <div className="flex h-full bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
       <NavRail />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} />
+        <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1">
           {view === 'playground' && <PlaygroundView />}
           {view === 'learn' && <LearnView />}
@@ -59,6 +74,7 @@ export default function App() {
           {view === 'settings' && <SettingsView />}
         </main>
       </div>
+      {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
     </div>
   )
 }
