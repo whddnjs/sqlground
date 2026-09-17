@@ -73,30 +73,48 @@ export function ProblemsView() {
   const codeRef = useRef(code)
   codeRef.current = code
 
-  const run = (): ExecOutcome | null => {
+  /**
+   * 내 SQL 을 실행해 채점에 쓸 결과를 돌려준다.
+   * 변경 문제는 스냅샷 → 실행 → 확인 쿼리 → 복원 순서라 몇 번을 실행해도 DB 가 그대로다.
+   */
+  const execute = async (sqlText: string): Promise<{ shown: ExecOutcome; graded: ExecOutcome | null } | null> => {
     if (!engine) return null
-    const o = engine.exec(codeRef.current)
-    setOutcome(o)
-    setTables(engine.getTables())
-    return o
+    if (!current.checkSql) {
+      const o = engine.exec(sqlText)
+      setTables(engine.getTables())
+      return { shown: o, graded: o.error ? null : o }
+    }
+    const snapshot = engine.export()
+    const o = engine.exec(sqlText)
+    const check = o.error ? null : engine.exec(current.checkSql)
+    await engine.import(snapshot)
+    return { shown: o.error || !check ? o : check, graded: check }
   }
 
-  const submit = () => {
-    const o = run()
-    if (!o || !engine) return
+  const run = async () => {
+    const r = await execute(codeRef.current)
+    if (r) setOutcome(r.shown)
+    return r
+  }
+
+  const submit = async () => {
+    const r = await run()
+    if (!r || !engine) return
     setAttempts((n) => n + 1)
-    if (o.error || o.results.length === 0) {
-      setVerdict({ ok: false, message: o.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SELECT 문을 작성하세요.' })
+    const mineOutcome = r.graded
+    if (!mineOutcome || mineOutcome.error || mineOutcome.results.length === 0) {
+      setVerdict({ ok: false, message: r.shown.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SQL 문을 작성하세요.' })
       return
     }
-    const expected = engine.exec(current.answerSql)
-    if (expected.error || expected.results.length === 0) {
+    const expected = await execute(current.answerSql)
+    const expectedOutcome = expected?.graded
+    if (!expectedOutcome || expectedOutcome.error || expectedOutcome.results.length === 0) {
       setVerdict({ ok: false, message: '정답을 계산할 수 없습니다. 예제 DB 를 초기화한 뒤 다시 시도하세요.' })
       return
     }
     // 여러 문장을 실행했다면 마지막 조회 결과로 채점
-    const mine = [...o.results].reverse().find((r) => r.columns.length > 0) ?? o.results[o.results.length - 1]
-    const g = grade(mine, expected.results[expected.results.length - 1], current.orderMatters)
+    const lastQuery = (o: ExecOutcome) => [...o.results].reverse().find((x) => x.columns.length > 0) ?? o.results[o.results.length - 1]
+    const g = grade(lastQuery(mineOutcome), lastQuery(expectedOutcome), current.orderMatters)
     setVerdict(g)
     if (g.ok) markSolved(current.id)
   }
@@ -104,11 +122,11 @@ export function ProblemsView() {
   const extensions = useMemo(
     () => [
       ...sqlExtensions(tables),
-      Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (run(), true) }, { key: 'Ctrl-Enter', run: () => (run(), true) }])),
+      Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (void run(), true) }, { key: 'Ctrl-Enter', run: () => (void run(), true) }])),
     ],
-    // run 은 ref 만 읽는다. 스키마가 바뀌면 자동완성 갱신을 위해 다시 만든다
+    // run 은 ref 와 현재 문제를 읽는다. 스키마나 문제가 바뀌면 다시 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [engine, tables],
+    [engine, tables, current.id],
   )
 
   const goLesson = () => {
@@ -196,9 +214,19 @@ export function ProblemsView() {
               {current.description}
             </Markdown>
           </div>
-          <p className="mb-4 text-xs text-neutral-500">
-            채점은 결과의 <strong>값</strong>만 비교합니다. 열 이름은 자유이고, {current.orderMatters ? '이 문제는 행 순서까지 맞아야 합니다.' : '행 순서는 상관없습니다.'}
-          </p>
+          {current.checkSql ? (
+            <div className="mb-4 rounded border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-300">
+              <p>
+                이 문제는 <strong>데이터를 바꾸는</strong> 문제입니다. 실행·제출하면 아래 확인 쿼리의 결과를 보여 주고 정답과 비교한 뒤,
+                DB 를 <strong>원래대로 되돌립니다</strong>. 몇 번이든 다시 시도할 수 있습니다.
+              </p>
+              <pre className="mt-2 overflow-x-auto font-mono text-[11px] text-neutral-500">확인 쿼리: {current.checkSql}</pre>
+            </div>
+          ) : (
+            <p className="mb-4 text-xs text-neutral-500">
+              채점은 결과의 <strong>값</strong>만 비교합니다. 열 이름은 자유이고, {current.orderMatters ? '이 문제는 행 순서까지 맞아야 합니다.' : '행 순서는 상관없습니다.'}
+            </p>
+          )}
 
           <div className="overflow-hidden rounded-md border border-neutral-200 dark:border-neutral-700">
             <CodeMirror
@@ -215,10 +243,10 @@ export function ProblemsView() {
               style={{ fontSize }}
             />
             <div className="flex items-center gap-1 border-t border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800/60">
-              <button onClick={run} className="flex items-center gap-1 rounded px-2.5 py-1 text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700" title="Cmd/Ctrl + Enter">
+              <button onClick={() => void run()} className="flex items-center gap-1 rounded px-2.5 py-1 text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700" title="Cmd/Ctrl + Enter">
                 <Play size={12} /> 실행
               </button>
-              <button onClick={submit} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
+              <button onClick={() => void submit()} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
                 <Send size={12} /> 제출
               </button>
               <button onClick={() => setShowHint((h) => !h)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">
@@ -258,6 +286,7 @@ export function ProblemsView() {
 
           {outcome && (
             <div className="mt-4 flex flex-col gap-3 text-sm">
+              {current.checkSql && !outcome.error && <p className="text-xs text-neutral-500">내 SQL 실행 후 확인 쿼리 결과</p>}
               {outcome.results.map((r, i) =>
                 r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-neutral-500">실행 완료 · {r.rowsAffected}행 영향</p>,
               )}

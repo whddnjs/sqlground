@@ -12,4 +12,10 @@ export interface Problem {
   hint: string
   /** true 면 행 순서까지 같아야 정답 */
   orderMatters?: boolean
+  /**
+   * 데이터 변경 문제(INSERT/UPDATE/DELETE/DDL)일 때만 지정.
+   * 내 SQL 과 정답 SQL 을 같은 시작 상태에서 각각 실행한 뒤 이 조회 결과를 비교한다.
+   * 실행과 채점이 끝나면 DB 는 시작 상태로 되돌아간다.
+   */
+  checkSql?: string
 }
