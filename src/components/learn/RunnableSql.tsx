@@ -1,7 +1,7 @@
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { ExternalLink, Play, RotateCcw } from 'lucide-react'
+import { ExternalLink, Play, RotateCcw, Square } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { ExecOutcome } from '../../db/engine'
 import { useLessonDb } from '../../learn/lesson-db-context'
@@ -16,7 +16,8 @@ interface Props {
 
 /** 학습 페이지의 예제 블록. 고쳐서 다시 실행할 수 있고, 결과가 바로 아래에 붙는다 */
 export function RunnableSql({ initialSql }: Props) {
-  const { tables, run: onRun, openInPlayground: onOpenInPlayground } = useLessonDb()
+  const { tables, run: onRun, cancel, openInPlayground: onOpenInPlayground } = useLessonDb()
+  const [running, setRunning] = useState(false)
   const [code, setCode] = useState(initialSql)
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
   const theme = useEffectiveTheme()
@@ -27,7 +28,13 @@ export function RunnableSql({ initialSql }: Props) {
   codeRef.current = code
   const onRunRef = useRef(onRun)
   onRunRef.current = onRun
-  const run = () => setOutcome(onRunRef.current(codeRef.current))
+  const run = () => {
+    setRunning(true)
+    void onRunRef
+      .current(codeRef.current)
+      .then(setOutcome)
+      .finally(() => setRunning(false))
+  }
   const extensions = useMemo(
     () => [
       ...sqlExtensions(tables),
@@ -49,9 +56,15 @@ export function RunnableSql({ initialSql }: Props) {
         style={{ fontSize }}
       />
       <div className="flex items-center gap-1 border-t border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800/60">
-        <button onClick={run} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
-          <Play size={12} /> 실행
-        </button>
+        {running ? (
+          <button onClick={cancel} className="flex items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700">
+            <Square size={11} /> 중단
+          </button>
+        ) : (
+          <button onClick={run} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
+            <Play size={12} /> 실행
+          </button>
+        )}
         {code !== initialSql && (
           <button onClick={() => setCode(initialSql)} title="예제 원래대로" className="flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">
             <RotateCcw size={12} /> 원래대로

@@ -2,10 +2,10 @@ import { Check, ChevronLeft, ChevronRight, ListChecks, RotateCcw, Search } from 
 import { useEffect, useMemo, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import { RunnableSql } from '../components/learn/RunnableSql'
-import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
+import type { AsyncDbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { LessonDbContext } from '../learn/lesson-db-context'
-import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
+import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import type { Lesson } from '../learn/types'
 import { PROBLEMS } from '../problems/content'
 import { useEditorStore } from '../store/editor-store'
@@ -38,15 +38,15 @@ export function LearnView() {
   const solved = useProblemStore((s) => s.solved)
   const selectProblem = useProblemStore((s) => s.select)
   const [query, setQuery] = useState('')
-  const [engine, setEngine] = useState<DbEngine | null>(null)
+  const [engine, setEngine] = useState<AsyncDbEngine | null>(null)
   const [engineVersion, setEngineVersion] = useState(0)
   // 자동완성용 테이블 목록. 예제 실행으로 구조가 바뀌면 갱신
   const [tables, setTables] = useState<TableInfo[]>([])
 
   useEffect(() => {
-    void getLessonEngine().then((e) => {
+    void getLessonEngine().then(async (e) => {
       setEngine(e)
-      setTables(e.getTables())
+      setTables(await e.getTables())
     })
   }, [])
 
@@ -69,12 +69,14 @@ export function LearnView() {
     [q],
   )
 
-  const run = (sql: string): ExecOutcome => {
+  const run = async (sql: string): Promise<ExecOutcome> => {
     if (!engine) return { results: [], error: { message: '학습용 DB 를 아직 불러오는 중입니다', sql } }
-    const outcome = engine.exec(sql)
+    const { outcome, tables: next } = await engine.exec(sql, { timeoutMs: LESSON_TIMEOUT_MS })
     // 구조가 실제로 바뀐 경우에만 갱신해 불필요한 다시 그리기를 막는다
-    const next = engine.getTables()
     setTables((prev) => (schemaKey(prev) === schemaKey(next) ? prev : next))
+    if (outcome.interrupted) {
+      return { ...outcome, error: { ...outcome.error!, message: `${outcome.error!.message} 예제 DB 는 샘플 데이터 상태로 돌아갔습니다.` } }
+    }
     return outcome
   }
   const openInPlayground = (sql: string) => {
@@ -84,7 +86,7 @@ export function LearnView() {
   const reset = async () => {
     const e = await resetLessonEngine()
     setEngine(e)
-    setTables(e.getTables())
+    setTables(await e.getTables())
     setEngineVersion((v) => v + 1)
   }
 
@@ -147,7 +149,7 @@ export function LearnView() {
           <h1 className="mb-4 text-2xl font-semibold">{current.title}</h1>
 
           <div key={`${current.id}-${engineVersion}`} className="lesson-body">
-            <LessonDbContext.Provider value={{ tables, run, openInPlayground }}>
+            <LessonDbContext.Provider value={{ tables, run, cancel: () => engine?.cancel(), openInPlayground }}>
               <Markdown components={MARKDOWN_COMPONENTS}>{current.body}</Markdown>
             </LessonDbContext.Provider>
           </div>

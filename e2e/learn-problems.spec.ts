@@ -25,6 +25,19 @@ test.describe('학습', () => {
     await expect(page.getByRole('option', { name: /^city/ })).toBeVisible()
   })
 
+  test('끝나지 않는 예제를 중단하면 예제 DB 가 샘플 상태로 돌아오고 계속 쓸 수 있다', async ({ page }) => {
+    await openApp(page)
+    await page.getByRole('button', { name: '학습' }).click()
+    await setEditor(page, 'DROP TABLE order_items; WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c;')
+    await page.getByRole('button', { name: '실행', exact: true }).first().click()
+    await page.getByRole('button', { name: '중단' }).click()
+    await expect(page.getByText(/실행을 중단했습니다/)).toBeVisible()
+
+    await setEditor(page, 'SELECT count(*) AS n FROM order_items;')
+    await page.getByRole('button', { name: '실행', exact: true }).first().click()
+    await expect(page.getByRole('columnheader', { name: 'n' })).toBeVisible()
+  })
+
   test('단원 아래 문제 링크로 문제풀이로 이동한다', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '학습' }).click()

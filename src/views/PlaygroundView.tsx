@@ -34,25 +34,25 @@ export function PlaygroundView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [showErd, dialog])
 
-  const handleRun = useCallback((sql: string) => run(sql), [run])
+  const handleRun = useCallback((sql: string) => void run(sql), [run])
   const close = () => setDialog(null)
   const insertAndClose = (sql: string) => {
     appendCode(sql)
     close()
   }
   const runAndClose = (sql: string) => {
-    runFromUi(sql)
+    void runFromUi(sql)
     close()
   }
   const selectTable = (t: TableInfo) => {
     const sql = buildSelectAll(t.name)
     appendCode(sql)
-    run(sql)
+    void run(sql)
     setShowErd(false)
   }
   const dropTable = (t: TableInfo) => {
     const sql = buildDropTable(t.name)
-    if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) runFromUi(sql)
+    if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) void runFromUi(sql)
   }
 
   return (
@@ -86,7 +86,7 @@ export function PlaygroundView() {
                 notice={notice}
                 history={history}
                 tables={tables}
-                onRunFromUi={runFromUi}
+                onRunFromUi={(sql, refreshSql) => void runFromUi(sql, refreshSql)}
                 onInsertToEditor={appendCode}
               />
             </Panel>
@@ -114,7 +114,7 @@ export function PlaygroundView() {
         // 구조 변경 후에도 다이얼로그를 유지하려고 이름으로 최신 테이블을 찾는다. 이름이 바뀌면 닫는다
         const table = tables.find((t) => t.name === dialog.table)
         if (!table) return null
-        return <AlterTableDialog table={table} tables={tables} onClose={close} onInsert={insertAndClose} onRun={(sql) => runFromUi(sql)} />
+        return <AlterTableDialog table={table} tables={tables} onClose={close} onInsert={insertAndClose} onRun={(sql) => void runFromUi(sql)} />
       })()}
     </>
   )

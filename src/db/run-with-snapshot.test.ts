@@ -30,6 +30,13 @@ describe('runWithSnapshot', () => {
     expect(engine.exec('SELECT count(*) FROM t').results[0].rows).toEqual([[1]])
   })
 
+  it('실행 직전 스냅샷은 변경 여부와 상관없이 먼저 전달된다 (중단 복구용)', () => {
+    const seen: number[] = []
+    runWithSnapshot(engine, snapshots, 'SELECT 1', (s) => seen.push(s.length))
+    expect(seen).toHaveLength(1)
+    expect(snapshots.size).toBe(0)
+  })
+
   it('실패한 실행은 아무것도 바꾸지 않았으면 쌓이지 않는다', () => {
     const { outcome, changed } = runWithSnapshot(engine, snapshots, 'SELECT * FROM nope')
     expect(outcome.error).toBeDefined()

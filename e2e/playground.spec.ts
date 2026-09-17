@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openApp, runInPlayground, schemaTable, undoButton } from './helpers'
+import { openApp, runInPlayground, schemaTable, setEditor, undoButton } from './helpers'
 
 test.describe('연습장', () => {
   test('기본 예시 쿼리가 실행되고 결과와 스키마가 표시된다', async ({ page }) => {
@@ -90,5 +90,28 @@ test.describe('연습장', () => {
     await page.keyboard.press('Enter')
     await expect(page.getByText("UPDATE users SET name = '철수' WHERE id = 1;")).toBeVisible()
     await expect(page.getByRole('cell', { name: '철수' })).toBeVisible()
+  })
+
+  test('끝나지 않는 쿼리 중에도 화면이 반응하고, 중단하면 DB 가 실행 직전 상태로 돌아온다', async ({ page }) => {
+    await openApp(page)
+    await runInPlayground(page, 'CREATE TABLE keep (id INTEGER); INSERT INTO keep VALUES (1);')
+    await expect(schemaTable(page, 'keep')).toBeVisible()
+
+    // 앞 문장은 성공하지만 뒤 문장이 끝나지 않는다. 중단하면 앞 문장의 변경도 함께 사라져야 한다
+    await setEditor(page, 'INSERT INTO keep VALUES (2); WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c;')
+    await page.getByRole('button', { name: '실행', exact: true }).click()
+    await expect(page.getByRole('button', { name: '중단' })).toBeVisible()
+
+    // 쿼리가 워커에서 돌기 때문에 다른 메뉴로 이동할 수 있다
+    await page.getByRole('button', { name: '설정' }).click()
+    await expect(page.getByRole('heading', { name: '설정' })).toBeVisible()
+    await page.getByRole('button', { name: '연습장' }).click()
+
+    await page.getByRole('button', { name: '중단' }).click()
+    await expect(page.getByText('실행을 중단했습니다.')).toBeVisible()
+    await expect(page.getByRole('button', { name: '실행', exact: true })).toBeVisible()
+
+    await runInPlayground(page, 'SELECT count(*) AS n FROM keep;')
+    await expect(page.getByRole('cell', { name: '1', exact: true }).last()).toBeVisible()
   })
 })

@@ -8,7 +8,9 @@ import type { ExecOutcome, TableInfo } from '../db/engine'
  */
 export interface LessonDb {
   tables: TableInfo[]
-  run(sql: string): ExecOutcome
+  run(sql: string): Promise<ExecOutcome>
+  /** 실행 중인 예제를 중단한다 */
+  cancel(): void
   openInPlayground(sql: string): void
 }
 

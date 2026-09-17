@@ -50,7 +50,7 @@ export default function App() {
     (preset: Preset) => {
       const existing = tables.map((t) => t.name).filter((n) => preset.tables.includes(n))
       if (existing.length > 0 && !window.confirm(`이미 있는 테이블(${existing.join(', ')})을 샘플 데이터로 덮어씁니다. 계속할까요?`)) return
-      loadPreset(preset)
+      void loadPreset(preset)
       setDescriptions(preset.descriptions)
     },
     [tables, loadPreset, setDescriptions],
@@ -63,7 +63,7 @@ export default function App() {
     <div className="flex h-full bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
       <NavRail />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
+        <Header onRun={() => void run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1">
           {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 메뉴로 옮기면 다시 시도한다 */}
           <ErrorBoundary key={view}>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SqliteEngine } from '../../db/sqlite/sqlite-engine'
 import { CHAPTERS } from '../../learn/content'
-import { loadSamples } from '../../learn/lesson-engine'
+import { loadSamples } from '../../learn/samples'
 import { grade } from '../grade'
 import { PROBLEMS } from './index'
 

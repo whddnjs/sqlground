@@ -3,7 +3,6 @@ import { createEngine } from '../db/create-engine'
 import type { ExecOutcome, TableInfo } from '../db/engine'
 import { clearDb, loadDb, saveDb } from '../db/persist'
 import type { Preset } from '../db/presets'
-import { runWithSnapshot } from '../db/run-with-snapshot'
 import { SnapshotStack } from '../db/snapshot'
 import { useSettingsStore } from './settings-store'
 
@@ -33,30 +32,35 @@ interface DbState {
   history: HistoryEntry[]
   /** 되돌릴 수 있는 스냅샷 개수 */
   undoCount: number
+  /** 쿼리가 실행 중인지. 실행 중에는 중단 버튼을 보여 준다 */
+  running: boolean
   init(): Promise<void>
-  run(sql: string): void
+  run(sql: string): Promise<void>
+  /** 실행 중인 쿼리를 중단한다. DB 는 실행 직전 상태로 돌아간다 */
+  cancel(): void
   /**
    * UI 조작으로 만든 SQL 실행. refreshSql 이 있으면 성공 후 그 조회를 다시 실행해 결과를 갱신하고,
    * 실행한 SQL 은 notice 로 보여 준다 (셀 편집 후 그리드 유지용)
    */
-  runFromUi(sql: string, refreshSql?: string): void
-  loadPreset(preset: Preset): void
+  runFromUi(sql: string, refreshSql?: string): Promise<void>
+  loadPreset(preset: Preset): Promise<void>
   undo(): Promise<void>
   reset(): Promise<void>
-  exportDb(): Uint8Array
+  exportDb(): Promise<Uint8Array>
   /** 파일에서 가져오기. 직전 상태는 스냅샷으로 남긴다 */
   importDb(data: Uint8Array): Promise<void>
-  setForeignKeys(enabled: boolean): void
+  setForeignKeys(enabled: boolean): Promise<void>
 }
 
 const engine = createEngine()
 const snapshots = new SnapshotStack(10)
 const HISTORY_LIMIT = 100
+/** 끝나지 않는 쿼리를 자동으로 끊는 한도. 그 전에는 사용자가 중단 버튼으로 끊을 수 있다 */
+const RUN_TIMEOUT_MS = 30_000
 
 const SAVE_DELAY_MS = 500
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let historyId = 0
-
 /** 저장할 변경이 남아 있는지. 트랜잭션 중에는 저장을 미루므로 따로 기억해 둔다 */
 let dirty = false
 
@@ -70,19 +74,30 @@ function scheduleSave(changed = true) {
   if (!dirty) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    if (engine.inTransaction()) return
-    dirty = false
-    void saveDb(engine.export())
+    void (async () => {
+      if (await engine.inTransaction()) return
+      dirty = false
+      await saveDb(await engine.export())
+    })()
   }, SAVE_DELAY_MS)
 }
 
 export const useDbStore = create<DbState>((set, get) => {
-  const refresh = (patch: Partial<DbState> = {}) =>
-    set({ tables: engine.getTables(), undoCount: snapshots.size, ...patch })
-
   const record = (sql: string, source: HistorySource, ok: boolean) => {
     const entry: HistoryEntry = { id: ++historyId, sql, source, ok, at: Date.now() }
     return [entry, ...get().history].slice(0, HISTORY_LIMIT)
+  }
+
+  /** 실행하고, 바뀐 경우에만 되돌리기 스택에 쌓는다 */
+  const execute = async (sql: string) => {
+    set({ running: true })
+    try {
+      const r = await engine.run(sql, { timeoutMs: RUN_TIMEOUT_MS })
+      if (r.changed && r.snapshot) snapshots.push(r.snapshot)
+      return r
+    } finally {
+      set({ running: false })
+    }
   }
 
   return {
@@ -93,62 +108,73 @@ export const useDbStore = create<DbState>((set, get) => {
     notice: null,
     history: [],
     undoCount: 0,
+    running: false,
 
     async init() {
       try {
         await engine.init()
-        engine.setForeignKeys(useSettingsStore.getState().foreignKeys)
+        await engine.setForeignKeys(useSettingsStore.getState().foreignKeys)
         const saved = await loadDb()
         if (saved) await engine.import(saved)
-        refresh({ status: 'ready' })
+        set({ status: 'ready', tables: await engine.getTables() })
       } catch (e) {
         set({ status: 'error', loadError: e instanceof Error ? e.message : String(e) })
       }
     },
 
-    run(sql) {
-      const { outcome, changed } = runWithSnapshot(engine, snapshots, sql)
-      refresh({ outcome, notice: null, history: record(sql, 'editor', !outcome.error) })
-      scheduleSave(changed)
+    async run(sql) {
+      if (get().running) return
+      const r = await execute(sql)
+      set({ outcome: r.outcome, notice: null, tables: r.tables, undoCount: snapshots.size, history: record(sql, 'editor', !r.outcome.error) })
+      scheduleSave(r.changed)
     },
 
-    runFromUi(sql, refreshSql) {
-      const { outcome, changed } = runWithSnapshot(engine, snapshots, sql)
-      const history = record(sql, 'ui', !outcome.error)
-      if (outcome.error || !refreshSql) {
-        refresh({ outcome, notice: null, history })
+    cancel() {
+      engine.cancel()
+    },
+
+    async runFromUi(sql, refreshSql) {
+      if (get().running) return
+      const r = await execute(sql)
+      const history = record(sql, 'ui', !r.outcome.error)
+      if (r.outcome.error || !refreshSql) {
+        set({ outcome: r.outcome, notice: null, tables: r.tables, undoCount: snapshots.size, history })
       } else {
-        const rowsAffected = outcome.results.reduce((n, r) => n + r.rowsAffected, 0)
-        refresh({ outcome: engine.exec(refreshSql), notice: { sql, rowsAffected }, history })
+        const rowsAffected = r.outcome.results.reduce((n, x) => n + x.rowsAffected, 0)
+        const refreshed = await engine.exec(refreshSql, { timeoutMs: RUN_TIMEOUT_MS })
+        set({ outcome: refreshed.outcome, notice: { sql, rowsAffected }, tables: refreshed.tables, undoCount: snapshots.size, history })
       }
-      scheduleSave(changed)
+      scheduleSave(r.changed)
     },
 
-    loadPreset(preset) {
-      const { outcome } = runWithSnapshot(engine, snapshots, preset.sql)
-      refresh({
-        outcome: outcome.error ? outcome : null,
-        notice: outcome.error ? null : { sql: `-- 샘플 "${preset.name}" 로드: ${preset.tables.join(', ')}`, rowsAffected: 0 },
-        history: record(`-- 샘플 로드: ${preset.name}`, 'preset', !outcome.error),
+    async loadPreset(preset) {
+      if (get().running) return
+      const r = await execute(preset.sql)
+      set({
+        outcome: r.outcome.error ? r.outcome : null,
+        notice: r.outcome.error ? null : { sql: `-- 샘플 "${preset.name}" 로드: ${preset.tables.join(', ')}`, rowsAffected: 0 },
+        tables: r.tables,
+        undoCount: snapshots.size,
+        history: record(`-- 샘플 로드: ${preset.name}`, 'preset', !r.outcome.error),
       })
-      scheduleSave()
+      scheduleSave(r.changed)
     },
 
     async undo() {
       const data = snapshots.pop()
       if (!data) return
       await engine.import(data)
-      refresh({ outcome: null, notice: null })
+      set({ outcome: null, notice: null, tables: await engine.getTables(), undoCount: snapshots.size })
       scheduleSave()
     },
 
     async reset() {
-      snapshots.push(engine.export())
+      snapshots.push(await engine.export())
       await engine.reset()
       clearTimeout(saveTimer)
       dirty = false
       await clearDb()
-      refresh({ outcome: null, notice: null })
+      set({ outcome: null, notice: null, tables: [], undoCount: snapshots.size })
     },
 
     exportDb() {
@@ -156,15 +182,22 @@ export const useDbStore = create<DbState>((set, get) => {
     },
 
     async importDb(data) {
-      snapshots.push(engine.export())
-      await engine.import(data)
-      // 깨진 파일이면 여기서 에러가 난다. getTables 로 실제 읽히는지 확인
-      refresh({ outcome: null, notice: { sql: '-- DB 파일 가져오기', rowsAffected: 0 } })
-      scheduleSave()
+      const before = await engine.export()
+      // 깨진 파일이면 import 나 getTables 에서 에러가 난다. 그때는 원래 상태로 되돌린다
+      try {
+        await engine.import(data)
+        const tables = await engine.getTables()
+        snapshots.push(before)
+        set({ outcome: null, notice: { sql: '-- DB 파일 가져오기', rowsAffected: 0 }, tables, undoCount: snapshots.size })
+        scheduleSave()
+      } catch (e) {
+        await engine.import(before)
+        throw e
+      }
     },
 
-    setForeignKeys(enabled) {
-      engine.setForeignKeys(enabled)
+    async setForeignKeys(enabled) {
+      await engine.setForeignKeys(enabled)
     },
   }
 })

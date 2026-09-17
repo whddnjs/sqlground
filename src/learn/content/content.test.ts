@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SqliteEngine } from '../../db/sqlite/sqlite-engine'
-import { loadSamples } from '../lesson-engine'
+import { loadSamples } from '../samples'
 import { extractSqlBlocks } from '../markdown'
 import { CHAPTERS } from './index'
 

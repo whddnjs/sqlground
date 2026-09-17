@@ -14,8 +14,8 @@ export function SettingsView() {
   const { exportDb, importDb, setForeignKeys, tables } = useDbStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const download = () => {
-    const blob = new Blob([exportDb() as BlobPart], { type: 'application/x-sqlite3' })
+  const download = async () => {
+    const blob = new Blob([(await exportDb()) as BlobPart], { type: 'application/x-sqlite3' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -77,14 +77,14 @@ export function SettingsView() {
             checked={foreignKeys}
             onChange={(e) => {
               update({ foreignKeys: e.target.checked })
-              setForeignKeys(e.target.checked)
+              void setForeignKeys(e.target.checked)
             }}
           />
           FOREIGN KEY 제약 강제
         </label>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button onClick={download} className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+          <button onClick={() => void download()} className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
             <Download size={14} /> DB 파일 내보내기 (.sqlite)
           </button>
           <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">

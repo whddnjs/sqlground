@@ -1,4 +1,4 @@
-import { ChevronDown, CircleHelp, Play, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, CircleHelp, Play, RotateCcw, Square, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { PRESETS, type Preset } from '../../db/presets'
 import { useDbStore } from '../../store/db-store'
@@ -15,6 +15,8 @@ export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props)
   const view = useUiStore((s) => s.view)
   const undoCount = useDbStore((s) => s.undoCount)
   const undo = useDbStore((s) => s.undo)
+  const running = useDbStore((s) => s.running)
+  const cancel = useDbStore((s) => s.cancel)
 
   return (
     <header className="flex h-12 items-center gap-3 border-b border-neutral-200 px-4 dark:border-neutral-700">
@@ -50,14 +52,25 @@ export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props)
             title={undoCount === 0 ? '되돌릴 실행이 없습니다' : `직전 실행 전으로 되돌립니다 (${undoCount}단계 남음)`}
           />
           <ToolButton icon={<Trash2 size={14} />} label="초기화" onClick={onReset} title="모든 테이블과 데이터를 지웁니다" />
-          <button
-            onClick={onRun}
-            title="Cmd/Ctrl + Enter"
-            className="ml-2 flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-          >
-            <Play size={14} />
-            실행
-          </button>
+          {running ? (
+            <button
+              onClick={cancel}
+              title="실행을 멈추고 DB 를 실행 직전 상태로 되돌립니다"
+              className="ml-2 flex items-center gap-1 rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+            >
+              <Square size={13} />
+              중단
+            </button>
+          ) : (
+            <button
+              onClick={onRun}
+              title="Cmd/Ctrl + Enter"
+              className="ml-2 flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+            >
+              <Play size={14} />
+              실행
+            </button>
+          )}
         </>
       )}
       </div>

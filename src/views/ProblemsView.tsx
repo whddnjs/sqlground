@@ -1,13 +1,13 @@
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { BookOpen, Check, ChevronLeft, ChevronRight, Eye, Lightbulb, Play, RotateCcw, Send } from 'lucide-react'
+import { BookOpen, Check, ChevronLeft, ChevronRight, Eye, Lightbulb, Play, RotateCcw, Send, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import { ResultGrid } from '../components/result/ResultGrid'
-import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
+import type { AsyncDbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
-import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
+import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import { sqlExtensions } from '../lib/editor-schema'
 import { explainSqlError } from '../lib/error-messages'
 import { PROBLEMS } from '../problems/content'
@@ -40,7 +40,8 @@ export function ProblemsView() {
   const next = ORDERED[index + 1]
   const isSolved = solved.includes(current.id)
 
-  const [engine, setEngine] = useState<DbEngine | null>(null)
+  const [engine, setEngine] = useState<AsyncDbEngine | null>(null)
+  const [running, setRunning] = useState(false)
   // 자동완성용 테이블 목록. DB 가 준비되거나 초기화되거나 실행으로 구조가 바뀔 때 갱신
   const [tables, setTables] = useState<TableInfo[]>([])
   const [code, setCode] = useState(drafts[current.id] ?? '')
@@ -50,9 +51,9 @@ export function ProblemsView() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [attempts, setAttempts] = useState(0)
 
-  const applyEngine = (e: DbEngine) => {
+  const applyEngine = async (e: AsyncDbEngine) => {
     setEngine(e)
-    setTables(e.getTables())
+    setTables(await e.getTables())
   }
   useEffect(() => {
     void getLessonEngine().then(applyEngine)
@@ -79,22 +80,29 @@ export function ProblemsView() {
    */
   const execute = async (sqlText: string): Promise<{ shown: ExecOutcome; graded: ExecOutcome | null } | null> => {
     if (!engine) return null
+    const options = { timeoutMs: LESSON_TIMEOUT_MS }
     if (!current.checkSql) {
-      const o = engine.exec(sqlText)
-      setTables(engine.getTables())
+      const { outcome: o, tables: next } = await engine.exec(sqlText, options)
+      setTables(next)
       return { shown: o, graded: o.error ? null : o }
     }
-    const snapshot = engine.export()
-    const o = engine.exec(sqlText)
-    const check = o.error ? null : engine.exec(current.checkSql)
+    const snapshot = await engine.export()
+    const { outcome: o } = await engine.exec(sqlText, options)
+    const check = o.error ? null : (await engine.exec(current.checkSql, options)).outcome
+    // 중단됐다면 엔진이 이미 복구 지점으로 돌아가 있다. 그 위에 시작 상태를 다시 올린다
     await engine.import(snapshot)
     return { shown: o.error || !check ? o : check, graded: check }
   }
 
   const run = async () => {
-    const r = await execute(codeRef.current)
-    if (r) setOutcome(r.shown)
-    return r
+    setRunning(true)
+    try {
+      const r = await execute(codeRef.current)
+      if (r) setOutcome(r.shown)
+      return r
+    } finally {
+      setRunning(false)
+    }
   }
 
   const submit = async () => {
@@ -106,7 +114,8 @@ export function ProblemsView() {
       setVerdict({ ok: false, message: r.shown.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SQL 문을 작성하세요.' })
       return
     }
-    const expected = await execute(current.answerSql)
+    setRunning(true)
+    const expected = await execute(current.answerSql).finally(() => setRunning(false))
     const expectedOutcome = expected?.graded
     if (!expectedOutcome || expectedOutcome.error || expectedOutcome.results.length === 0) {
       setVerdict({ ok: false, message: '정답을 계산할 수 없습니다. 예제 DB 를 초기화한 뒤 다시 시도하세요.' })
@@ -243,10 +252,16 @@ export function ProblemsView() {
               style={{ fontSize }}
             />
             <div className="flex items-center gap-1 border-t border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800/60">
-              <button onClick={() => void run()} className="flex items-center gap-1 rounded px-2.5 py-1 text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700" title="Cmd/Ctrl + Enter">
-                <Play size={12} /> 실행
-              </button>
-              <button onClick={() => void submit()} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
+              {running ? (
+                <button onClick={() => engine?.cancel()} className="flex items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700">
+                  <Square size={11} /> 중단
+                </button>
+              ) : (
+                <button onClick={() => void run()} className="flex items-center gap-1 rounded px-2.5 py-1 text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700" title="Cmd/Ctrl + Enter">
+                  <Play size={12} /> 실행
+                </button>
+              )}
+              <button disabled={running} onClick={() => void submit()} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50">
                 <Send size={12} /> 제출
               </button>
               <button onClick={() => setShowHint((h) => !h)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">

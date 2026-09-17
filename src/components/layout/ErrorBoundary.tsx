@@ -25,9 +25,9 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('화면 렌더링 중 오류', error, info.componentStack)
   }
 
-  private downloadDb = () => {
+  private downloadDb = async () => {
     try {
-      const data = useDbStore.getState().exportDb()
+      const data = await useDbStore.getState().exportDb()
       const url = URL.createObjectURL(new Blob([data as BlobPart], { type: 'application/x-sqlite3' }))
       const a = document.createElement('a')
       a.href = url
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button onClick={() => window.location.reload()} className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
               새로고침
             </button>
-            <button onClick={this.downloadDb} className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+            <button onClick={() => void this.downloadDb()} className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
               DB 파일 내려받기
             </button>
             <button onClick={() => this.setState({ error: null, exportError: null })} className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
