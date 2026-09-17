@@ -15,7 +15,7 @@ import { grade, type GradeResult } from '../problems/grade'
 import type { Problem } from '../problems/types'
 import { useLearnStore } from '../store/learn-store'
 import { useProblemStore } from '../store/problem-store'
-import { useEffectiveTheme, useSettingsStore } from '../store/settings-store'
+import { useSettingsStore } from '../store/settings-store'
 import { useUiStore } from '../store/ui-store'
 
 /** 단원 순서대로 문제를 묶는다. 문제가 없는 단원은 건너뛴다 */
@@ -31,7 +31,6 @@ export function ProblemsView() {
   const { solved, drafts, lastProblem, select, saveDraft, markSolved } = useProblemStore()
   const selectLesson = useLearnStore((s) => s.select)
   const setView = useUiStore((s) => s.setView)
-  const theme = useEffectiveTheme()
   const fontSize = useSettingsStore((s) => s.fontSize)
 
   const current = ORDERED.find((p) => p.id === lastProblem) ?? ORDERED[0]
@@ -145,12 +144,12 @@ export function ProblemsView() {
   const lessonTitle = CHAPTERS.flatMap((c) => c.lessons).find((l) => l.id === current.lessonId)?.title ?? ''
 
   return (
-    <div className="flex h-full">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-700">
+    <div className="flex h-full gap-2">
+      <aside className="card flex w-64 shrink-0 flex-col overflow-hidden">
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {GROUPS.map((g) => (
             <div key={g.chapter.id} className="mb-3">
-              <p className="px-2 py-1 text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">{g.chapter.title}</p>
+              <p className="section-label px-2 pt-2 pb-1">{g.chapter.title}</p>
               {g.lessons.map((l) => (
                 <ul key={l.lesson.id}>
                   {l.problems.map((p) => {
@@ -161,14 +160,14 @@ export function ProblemsView() {
                         <button
                           onClick={() => select(p.id)}
                           className={[
-                            'flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm',
-                            active ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
+                            active ? 'bg-accent-soft font-medium text-accent-fg' : 'text-fg hover:bg-hover',
                           ].join(' ')}
                         >
                           <span
                             className={[
                               'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px]',
-                              done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-neutral-300 dark:border-neutral-600',
+                              done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong',
                             ].join(' ')}
                           >
                             {done && <Check size={10} />}
@@ -184,60 +183,60 @@ export function ProblemsView() {
             </div>
           ))}
         </nav>
-        <div className="border-t border-neutral-200 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700">
+        <div className="border-t border-line px-3 py-2 text-xs text-fg-muted tabular-nums">
           {solved.length} / {ORDERED.length} 해결
         </div>
       </aside>
 
-      <article className="min-w-0 flex-1 overflow-y-auto">
+      <article className="card min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-8 py-6">
-          <div className="mb-3 flex items-center gap-3 text-xs text-neutral-500">
+          <div className="mb-3 flex items-center gap-3 text-xs text-fg-muted">
             <span>
               {index + 1} / {ORDERED.length}
             </span>
             <span className="flex items-center gap-1">
               <Difficulty level={current.difficulty} /> {DIFFICULTY[current.difficulty]}
             </span>
-            <button onClick={goLesson} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <button onClick={goLesson} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-hover">
               <BookOpen size={12} /> 관련 단원: {lessonTitle}
             </button>
             <button
               onClick={() => void resetLessonEngine().then(applyEngine)}
               title="예제 DB 를 샘플 데이터 상태로 되돌립니다"
-              className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-hover"
             >
               <RotateCcw size={12} /> 예제 DB 초기화
             </button>
           </div>
 
-          <h1 className="mb-3 flex items-center gap-2 text-2xl font-semibold">
+          <h1 className="mb-3 flex items-center gap-2 text-[26px] font-bold tracking-tight">
             {current.title}
             {isSolved && <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">해결</span>}
           </h1>
           <div className="lesson-body mb-4">
             <Markdown
               components={{
-                code: ({ children }) => <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[0.9em] dark:bg-neutral-800">{String(children)}</code>,
+                code: ({ children }) => <code className="rounded bg-subtle px-1 py-0.5 font-mono text-[0.9em]">{String(children)}</code>,
               }}
             >
               {current.description}
             </Markdown>
           </div>
           {current.checkSql ? (
-            <div className="mb-4 rounded border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-300">
+            <div className="mb-4 rounded border border-line bg-canvas p-3 text-xs text-fg-muted">
               <p>
                 이 문제는 <strong>데이터를 바꾸는</strong> 문제입니다. 실행·제출하면 아래 확인 쿼리의 결과를 보여 주고 정답과 비교한 뒤,
                 DB 를 <strong>원래대로 되돌립니다</strong>. 몇 번이든 다시 시도할 수 있습니다.
               </p>
-              <pre className="mt-2 overflow-x-auto font-mono text-[11px] text-neutral-500">확인 쿼리: {current.checkSql}</pre>
+              <pre className="mt-2 overflow-x-auto font-mono text-[11px] text-fg-muted">확인 쿼리: {current.checkSql}</pre>
             </div>
           ) : (
-            <p className="mb-4 text-xs text-neutral-500">
+            <p className="mb-4 text-xs text-fg-muted">
               채점은 결과의 <strong>값</strong>만 비교합니다. 열 이름은 자유이고, {current.orderMatters ? '이 문제는 행 순서까지 맞아야 합니다.' : '행 순서는 상관없습니다.'}
             </p>
           )}
 
-          <div className="overflow-hidden rounded-md border border-neutral-200 dark:border-neutral-700">
+          <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
             <CodeMirror
               value={code}
               onChange={(v) => {
@@ -245,33 +244,33 @@ export function ProblemsView() {
                 saveDraft(current.id, v)
               }}
               extensions={extensions}
-              theme={theme}
+              theme="none"
               minHeight="120px"
               placeholder="여기에 SQL 을 작성하세요"
               basicSetup={{ foldGutter: false, highlightActiveLine: false }}
               style={{ fontSize }}
             />
-            <div className="flex items-center gap-1 border-t border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800/60">
+            <div className="flex items-center gap-1 border-t border-line bg-subtle/60 px-2 py-1.5">
               {running ? (
-                <button onClick={() => engine?.cancel()} className="flex items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700">
+                <button onClick={() => engine?.cancel()} className="btn btn-sm btn-danger">
                   <Square size={11} /> 중단
                 </button>
               ) : (
-                <button onClick={() => void run()} className="flex items-center gap-1 rounded px-2.5 py-1 text-xs hover:bg-neutral-200 dark:hover:bg-neutral-700" title="Cmd/Ctrl + Enter">
+                <button onClick={() => void run()} className="btn btn-sm btn-outline" title="Cmd/Ctrl + Enter">
                   <Play size={12} /> 실행
                 </button>
               )}
-              <button disabled={running} onClick={() => void submit()} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50">
+              <button disabled={running} onClick={() => void submit()} className="btn btn-sm btn-primary">
                 <Send size={12} /> 제출
               </button>
-              <button onClick={() => setShowHint((h) => !h)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">
+              <button onClick={() => setShowHint((h) => !h)} className="btn btn-sm btn-ghost ml-auto">
                 <Lightbulb size={12} /> 힌트
               </button>
               <button
                 onClick={() => setShowAnswer((a) => !a)}
                 disabled={attempts === 0 && !isSolved}
                 title={attempts === 0 && !isSolved ? '한 번 제출한 뒤에 볼 수 있습니다' : undefined}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 disabled:opacity-40 dark:hover:bg-neutral-700"
+                className="btn btn-sm btn-ghost"
               >
                 <Eye size={12} /> 정답 보기
               </button>
@@ -284,7 +283,7 @@ export function ProblemsView() {
             </p>
           )}
           {showAnswer && (
-            <pre className="mt-3 overflow-x-auto rounded border border-neutral-200 bg-neutral-50 p-3 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800">{current.answerSql}</pre>
+            <pre className="mt-3 overflow-x-auto rounded border border-line bg-canvas p-3 font-mono text-xs">{current.answerSql}</pre>
           )}
           {verdict && (
             <p
@@ -301,9 +300,9 @@ export function ProblemsView() {
 
           {outcome && (
             <div className="mt-4 flex flex-col gap-3 text-sm">
-              {current.checkSql && !outcome.error && <p className="text-xs text-neutral-500">내 SQL 실행 후 확인 쿼리 결과</p>}
+              {current.checkSql && !outcome.error && <p className="text-xs text-fg-muted">내 SQL 실행 후 확인 쿼리 결과</p>}
               {outcome.results.map((r, i) =>
-                r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-neutral-500">실행 완료 · {r.rowsAffected}행 영향</p>,
+                r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>,
               )}
               {outcome.error && (
                 <div className="rounded border border-red-300 bg-red-50 p-2 text-xs dark:border-red-800 dark:bg-red-950">
@@ -314,11 +313,11 @@ export function ProblemsView() {
             </div>
           )}
 
-          <div className="mt-10 flex items-center gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
-            <button disabled={!prev} onClick={() => prev && select(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800">
+          <div className="mt-10 flex items-center gap-2 border-t border-line pt-4">
+            <button disabled={!prev} onClick={() => prev && select(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               <ChevronLeft size={16} /> {prev?.title ?? '이전'}
             </button>
-            <button disabled={!next} onClick={() => next && select(next.id)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800">
+            <button disabled={!next} onClick={() => next && select(next.id)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               {next?.title ?? '다음'} <ChevronRight size={16} />
             </button>
           </div>
@@ -332,7 +331,7 @@ function Difficulty({ level }: { level: 1 | 2 | 3 }) {
   return (
     <span className="flex shrink-0 gap-0.5" title={DIFFICULTY[level]}>
       {[1, 2, 3].map((i) => (
-        <span key={i} className={['h-1.5 w-1.5 rounded-full', i <= level ? 'bg-amber-500' : 'bg-neutral-200 dark:bg-neutral-700'].join(' ')} />
+        <span key={i} className={['h-1.5 w-1.5 rounded-full', i <= level ? 'bg-amber-500' : 'bg-hover'].join(' ')} />
       ))}
     </span>
   )

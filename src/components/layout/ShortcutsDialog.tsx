@@ -53,20 +53,20 @@ export function ShortcutsDialog({ onClose }: { onClose(): void }) {
       <div className="flex flex-col gap-5">
         {SECTIONS.map((s) => (
           <section key={s.title}>
-            <h3 className="mb-2 text-xs font-medium text-neutral-500">{s.title}</h3>
+            <h3 className="mb-2 text-xs font-medium text-fg-muted">{s.title}</h3>
             <table className="w-full text-sm">
               <tbody>
                 {s.rows.map((r) => (
-                  <tr key={r.what} className="border-t border-neutral-100 dark:border-neutral-800">
+                  <tr key={r.what} className="border-t border-line">
                     <td className="w-52 py-1.5 pr-3 align-top">
                       {r.keys.map((k, i) => (
                         <span key={k}>
-                          {i > 0 && <span className="mx-1 text-neutral-400">/</span>}
-                          <kbd className="rounded border border-neutral-300 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-600 dark:bg-neutral-800">{k}</kbd>
+                          {i > 0 && <span className="mx-1 text-fg-subtle">/</span>}
+                          <kbd className="rounded border border-line-strong bg-canvas px-1.5 py-0.5 font-mono text-xs">{k}</kbd>
                         </span>
                       ))}
                     </td>
-                    <td className="py-1.5 text-neutral-700 dark:text-neutral-300">{r.what}</td>
+                    <td className="py-1.5 text-fg">{r.what}</td>
                   </tr>
                 ))}
               </tbody>

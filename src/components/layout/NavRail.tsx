@@ -1,11 +1,11 @@
 import { BookOpen, Database, ListChecks, Settings, type LucideIcon } from 'lucide-react'
 import { useUiStore, type View } from '../../store/ui-store'
+import { Logo } from './Logo'
 
 interface Item {
   view: View
   label: string
   icon: LucideIcon
-  comingSoon?: boolean
 }
 
 const MAIN: Item[] = [
@@ -18,8 +18,11 @@ const BOTTOM: Item[] = [{ view: 'settings', label: '설정', icon: Settings }]
 
 export function NavRail() {
   return (
-    <nav className="flex w-16 shrink-0 flex-col items-center border-r border-neutral-200 bg-neutral-50 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-      <ul className="flex flex-col gap-1">
+    <nav className="flex w-[68px] shrink-0 flex-col items-center pb-2">
+      <div className="flex h-12 items-center justify-center">
+        <Logo />
+      </div>
+      <ul className="mt-1 flex flex-col gap-1">
         {MAIN.map((item) => (
           <NavButton key={item.view} item={item} />
         ))}
@@ -43,17 +46,13 @@ function NavButton({ item }: { item: Item }) {
         onClick={() => setView(item.view)}
         aria-current={active ? 'page' : undefined}
         className={[
-          'relative flex w-14 flex-col items-center gap-0.5 rounded-md px-1 py-2 text-[11px]',
-          active
-            ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-            : 'text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200',
+          'relative flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10.5px] font-medium transition-colors',
+          active ? 'bg-surface text-accent-fg shadow-panel' : 'text-fg-muted hover:bg-hover hover:text-fg',
         ].join(' ')}
       >
-        <Icon size={20} strokeWidth={1.75} />
+        {active && <span className="absolute top-2.5 bottom-2.5 -left-1.5 w-[3px] rounded-full bg-accent" />}
+        <Icon size={19} strokeWidth={active ? 2 : 1.7} />
         <span>{item.label}</span>
-        {item.comingSoon && (
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-400" title="준비 중" />
-        )}
       </button>
     </li>
   )

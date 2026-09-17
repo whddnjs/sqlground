@@ -1,6 +1,7 @@
 import type { Completion, CompletionSource } from '@codemirror/autocomplete'
 import { SQLite, sql } from '@codemirror/lang-sql'
 import type { Extension } from '@codemirror/state'
+import { editorTheme } from '../components/editor/editor-theme'
 import type { TableInfo } from '../db/engine'
 
 /** CodeMirror SQL 자동완성용 스키마. 테이블 이름 → 컬럼 이름 목록 */
@@ -54,6 +55,7 @@ function columnCompletionSource(tables: TableInfo[]): CompletionSource {
 /** 모든 SQL 에디터(연습장, 학습 예제, 문제풀이)가 공통으로 쓰는 언어 확장 */
 export function sqlExtensions(tables: TableInfo[]): Extension[] {
   return [
+    editorTheme,
     sql({ dialect: SQLite, schema: editorSchema(tables), upperCaseKeywords: true }),
     SQLite.language.data.of({ autocomplete: columnCompletionSource(tables) }),
   ]

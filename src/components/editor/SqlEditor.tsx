@@ -4,7 +4,6 @@ import CodeMirror from '@uiw/react-codemirror'
 import { useMemo } from 'react'
 import type { TableInfo } from '../../db/engine'
 import { sqlExtensions } from '../../lib/editor-schema'
-import { useEffectiveTheme } from '../../store/settings-store'
 import { sqlToRun } from './sql-to-run'
 
 interface Props {
@@ -17,7 +16,6 @@ interface Props {
 }
 
 export function SqlEditor({ value, onChange, onRun, tables, fontSize = 14 }: Props) {
-  const theme = useEffectiveTheme()
   const extensions = useMemo(() => {
     return [
       ...sqlExtensions(tables),
@@ -37,7 +35,7 @@ export function SqlEditor({ value, onChange, onRun, tables, fontSize = 14 }: Pro
       onChange={onChange}
       extensions={extensions}
       height="100%"
-      theme={theme}
+      theme="none"
       style={{ fontSize }}
       className="h-full [&_.cm-editor]:h-full"
     />

@@ -56,10 +56,10 @@ export function InsertRowDialog({ table, onClose, onInsert, onRun }: Props) {
             <label key={c.name} className="block text-sm">
               <span className="mb-1 flex items-baseline gap-2 text-xs">
                 <span className="font-medium">{c.name}</span>
-                <span className="text-neutral-400">{c.type}</span>
+                <span className="text-fg-subtle">{c.type}</span>
                 {c.primaryKey && <span className="text-amber-600">PK</span>}
-                {c.notNull && !c.primaryKey && <span className="text-neutral-400">NOT NULL</span>}
-                {describe(table.name, c.name) && <span className="text-neutral-500">· {describe(table.name, c.name)}</span>}
+                {c.notNull && !c.primaryKey && <span className="text-fg-subtle">NOT NULL</span>}
+                {describe(table.name, c.name) && <span className="text-fg-muted">· {describe(table.name, c.name)}</span>}
               </span>
               <span className="flex items-center gap-2">
                 <input
@@ -71,7 +71,7 @@ export function InsertRowDialog({ table, onClose, onInsert, onRun }: Props) {
                   className={inputClass}
                 />
                 {!c.notNull && !c.primaryKey && (
-                  <label className="flex shrink-0 items-center gap-1 text-xs text-neutral-500">
+                  <label className="flex shrink-0 items-center gap-1 text-xs text-fg-muted">
                     <input type="checkbox" checked={f.isNull} onChange={(e) => setField(c.name, { isNull: e.target.checked })} />
                     NULL
                   </label>

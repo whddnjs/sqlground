@@ -36,7 +36,7 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
 
   return (
     <Modal title={`${table.name} 구조 변경`} onClose={onClose} wide>
-      <p className="mb-4 text-xs text-neutral-500">
+      <p className="mb-4 text-xs text-fg-muted">
         각 항목은 적용을 누르는 즉시 ALTER TABLE 로 실행됩니다. 잘못 바꿨다면 헤더의 되돌리기로 복구할 수 있습니다.
         SQLite 는 컬럼 타입이나 제약 변경을 지원하지 않아 그 경우엔 테이블을 새로 만들어야 합니다.
       </p>
@@ -102,13 +102,13 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
       </Section>
 
       <Section title="기존 컬럼">
-        <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+        <ul className="divide-y divide-line">
           {table.columns.map((c) => {
             const renamed = renames[c.name] ?? c.name
             const changed = renamed.trim() !== '' && renamed.trim() !== c.name
             return (
               <li key={c.name} className="flex items-center gap-2 py-1.5 text-sm">
-                <span className="w-24 shrink-0 font-mono text-xs text-neutral-500">
+                <span className="w-24 shrink-0 font-mono text-xs text-fg-muted">
                   {c.primaryKey && <span className="mr-1 text-amber-600">PK</span>}
                   {c.type}
                 </span>
@@ -124,7 +124,7 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
                     })
                   }}
                   title={buildRenameColumn(table.name, c.name, renamed.trim() || c.name)}
-                  className="shrink-0 rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-600 dark:hover:bg-neutral-800"
+                  className="shrink-0 rounded border border-line-strong px-2 py-1 text-xs hover:bg-hover disabled:opacity-40"
                 >
                   이름 변경
                 </button>
@@ -135,7 +135,7 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
                     if (window.confirm(`'${c.name}' 컬럼과 그 데이터를 삭제할까요?\n\n${sql}`)) onRun(sql)
                   }}
                   title={c.primaryKey ? 'PK 컬럼은 삭제할 수 없습니다' : buildDropColumn(table.name, c.name)}
-                  className="shrink-0 rounded p-1 text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 dark:hover:bg-red-950"
+                  className="shrink-0 rounded p-1 text-fg-subtle hover:bg-red-50 hover:text-red-600 disabled:opacity-30 dark:hover:bg-red-950"
                   aria-label="컬럼 삭제"
                 >
                   <Trash2 size={14} />
@@ -152,7 +152,7 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-5">
-      <h3 className="mb-2 text-xs font-medium text-neutral-500">{title}</h3>
+      <h3 className="mb-2 text-xs font-medium text-fg-muted">{title}</h3>
       {children}
     </section>
   )
@@ -164,14 +164,14 @@ function ApplyButtons({ sql, disabled, onInsert, onRun, icon }: { sql: string; d
       <button
         disabled={disabled}
         onClick={() => onInsert(sql)}
-        className="shrink-0 rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-600 dark:hover:bg-neutral-800"
+        className="shrink-0 rounded border border-line-strong px-2 py-1 text-xs hover:bg-hover disabled:opacity-40"
       >
         에디터에 넣기
       </button>
       <button
         disabled={disabled}
         onClick={() => onRun(sql)}
-        className="flex shrink-0 items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-40"
+        className="flex shrink-0 items-center gap-1 rounded bg-accent px-2.5 py-1 text-xs text-white hover:bg-accent-hover disabled:opacity-40"
       >
         {icon}적용
       </button>
