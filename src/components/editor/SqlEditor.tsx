@@ -1,9 +1,9 @@
-import { SQLite, sql } from '@codemirror/lang-sql'
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
 import { useMemo } from 'react'
 import type { TableInfo } from '../../db/engine'
+import { sqlExtensions } from '../../lib/editor-schema'
 import { useEffectiveTheme } from '../../store/settings-store'
 import { sqlToRun } from './sql-to-run'
 
@@ -19,9 +19,8 @@ interface Props {
 export function SqlEditor({ value, onChange, onRun, tables, fontSize = 14 }: Props) {
   const theme = useEffectiveTheme()
   const extensions = useMemo(() => {
-    const schema = Object.fromEntries(tables.map((t) => [t.name, t.columns.map((c) => c.name)]))
     return [
-      sql({ dialect: SQLite, schema, upperCaseKeywords: true }),
+      ...sqlExtensions(tables),
       Prec.highest(
         keymap.of([
           // Mac 에서는 Cmd+Enter 와 Ctrl+Enter 둘 다 실행되게 한다

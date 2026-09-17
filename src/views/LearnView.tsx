@@ -2,7 +2,7 @@ import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from 'lucide-reac
 import { useEffect, useMemo, useState } from 'react'
 import Markdown from 'react-markdown'
 import { RunnableSql } from '../components/learn/RunnableSql'
-import type { DbEngine, ExecOutcome } from '../db/engine'
+import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import type { Lesson } from '../learn/types'
@@ -19,9 +19,14 @@ export function LearnView() {
   const [query, setQuery] = useState('')
   const [engine, setEngine] = useState<DbEngine | null>(null)
   const [engineVersion, setEngineVersion] = useState(0)
+  // 자동완성용 테이블 목록. 예제 실행으로 구조가 바뀌면 갱신
+  const [tables, setTables] = useState<TableInfo[]>([])
 
   useEffect(() => {
-    void getLessonEngine().then(setEngine)
+    void getLessonEngine().then((e) => {
+      setEngine(e)
+      setTables(e.getTables())
+    })
   }, [])
 
   const current = ALL_LESSONS.find((l) => l.id === lastLesson) ?? ALL_LESSONS[0]
@@ -44,14 +49,18 @@ export function LearnView() {
 
   const run = (sql: string): ExecOutcome => {
     if (!engine) return { results: [], error: { message: '학습용 DB 를 아직 불러오는 중입니다', sql } }
-    return engine.exec(sql)
+    const outcome = engine.exec(sql)
+    setTables(engine.getTables())
+    return outcome
   }
   const openInPlayground = (sql: string) => {
     appendCode(sql)
     setView('playground')
   }
   const reset = async () => {
-    setEngine(await resetLessonEngine())
+    const e = await resetLessonEngine()
+    setEngine(e)
+    setTables(e.getTables())
     setEngineVersion((v) => v + 1)
   }
 
@@ -119,7 +128,7 @@ export function LearnView() {
                 pre: ({ children }) => <>{children}</>,
                 code: ({ className, children }) => {
                   const text = String(children).replace(/\n$/, '')
-                  if (className === 'language-sql') return <RunnableSql initialSql={text} onRun={run} onOpenInPlayground={openInPlayground} />
+                  if (className === 'language-sql') return <RunnableSql initialSql={text} tables={tables} onRun={run} onOpenInPlayground={openInPlayground} />
                   if (className) return <pre className="my-4 overflow-x-auto rounded-md bg-neutral-100 p-3 font-mono text-[13px] dark:bg-neutral-800">{text}</pre>
                   return <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[0.9em] dark:bg-neutral-800">{text}</code>
                 },

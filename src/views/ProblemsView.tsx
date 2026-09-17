@@ -1,4 +1,3 @@
-import { SQLite, sql } from '@codemirror/lang-sql'
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
@@ -6,9 +5,10 @@ import { BookOpen, Check, ChevronLeft, ChevronRight, Eye, Lightbulb, Play, Rotat
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import { ResultGrid } from '../components/result/ResultGrid'
-import type { DbEngine, ExecOutcome } from '../db/engine'
+import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
+import { sqlExtensions } from '../lib/editor-schema'
 import { explainSqlError } from '../lib/error-messages'
 import { PROBLEMS } from '../problems/content'
 import { grade, type GradeResult } from '../problems/grade'
@@ -41,6 +41,8 @@ export function ProblemsView() {
   const isSolved = solved.includes(current.id)
 
   const [engine, setEngine] = useState<DbEngine | null>(null)
+  // 자동완성용 테이블 목록. DB 가 준비되거나 초기화되거나 실행으로 구조가 바뀔 때 갱신
+  const [tables, setTables] = useState<TableInfo[]>([])
   const [code, setCode] = useState(drafts[current.id] ?? '')
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
   const [verdict, setVerdict] = useState<GradeResult | null>(null)
@@ -48,8 +50,12 @@ export function ProblemsView() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [attempts, setAttempts] = useState(0)
 
+  const applyEngine = (e: DbEngine) => {
+    setEngine(e)
+    setTables(e.getTables())
+  }
   useEffect(() => {
-    void getLessonEngine().then(setEngine)
+    void getLessonEngine().then(applyEngine)
   }, [])
 
   // 문제가 바뀌면 상태 초기화 (draft 는 복원)
@@ -71,6 +77,7 @@ export function ProblemsView() {
     if (!engine) return null
     const o = engine.exec(codeRef.current)
     setOutcome(o)
+    setTables(engine.getTables())
     return o
   }
 
@@ -96,12 +103,12 @@ export function ProblemsView() {
 
   const extensions = useMemo(
     () => [
-      sql({ dialect: SQLite, upperCaseKeywords: true }),
+      ...sqlExtensions(tables),
       Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (run(), true) }, { key: 'Ctrl-Enter', run: () => (run(), true) }])),
     ],
-    // run 은 ref 만 읽으므로 처음 한 번만
+    // run 은 ref 만 읽는다. 스키마가 바뀌면 자동완성 갱신을 위해 다시 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [engine],
+    [engine, tables],
   )
 
   const goLesson = () => {
@@ -168,7 +175,7 @@ export function ProblemsView() {
               <BookOpen size={12} /> 관련 단원: {lessonTitle}
             </button>
             <button
-              onClick={() => void resetLessonEngine().then(setEngine)}
+              onClick={() => void resetLessonEngine().then(applyEngine)}
               title="예제 DB 를 샘플 데이터 상태로 되돌립니다"
               className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             >

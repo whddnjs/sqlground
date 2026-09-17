@@ -1,23 +1,25 @@
-import { SQLite, sql } from '@codemirror/lang-sql'
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
 import { ExternalLink, Play, RotateCcw } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import type { ExecOutcome } from '../../db/engine'
+import type { ExecOutcome, TableInfo } from '../../db/engine'
+import { sqlExtensions } from '../../lib/editor-schema'
 import { explainSqlError } from '../../lib/error-messages'
 import { useEffectiveTheme, useSettingsStore } from '../../store/settings-store'
 import { ResultGrid } from '../result/ResultGrid'
 
 interface Props {
   initialSql: string
+  /** 자동완성용 학습 DB 테이블 */
+  tables: TableInfo[]
   /** 학습용 DB 에서 실행 */
   onRun(sql: string): ExecOutcome
   onOpenInPlayground(sql: string): void
 }
 
 /** 학습 페이지의 예제 블록. 고쳐서 다시 실행할 수 있고, 결과가 바로 아래에 붙는다 */
-export function RunnableSql({ initialSql, onRun, onOpenInPlayground }: Props) {
+export function RunnableSql({ initialSql, tables, onRun, onOpenInPlayground }: Props) {
   const [code, setCode] = useState(initialSql)
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
   const theme = useEffectiveTheme()
@@ -29,12 +31,12 @@ export function RunnableSql({ initialSql, onRun, onOpenInPlayground }: Props) {
   const run = () => setOutcome(onRun(codeRef.current))
   const extensions = useMemo(
     () => [
-      sql({ dialect: SQLite, upperCaseKeywords: true }),
+      ...sqlExtensions(tables),
       Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (run(), true) }, { key: 'Ctrl-Enter', run: () => (run(), true) }])),
     ],
-    // run 은 ref 만 읽으므로 처음 한 번만 만들면 된다
+    // run 은 ref 만 읽는다. 스키마가 바뀌면 자동완성 갱신을 위해 다시 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [tables],
   )
 
   return (
