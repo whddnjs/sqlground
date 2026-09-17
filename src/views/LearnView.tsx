@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ListChecks, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import Markdown from 'react-markdown'
 import { RunnableSql } from '../components/learn/RunnableSql'
@@ -6,8 +6,10 @@ import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import type { Lesson } from '../learn/types'
+import { PROBLEMS } from '../problems/content'
 import { useEditorStore } from '../store/editor-store'
 import { useLearnStore } from '../store/learn-store'
+import { useProblemStore } from '../store/problem-store'
 import { useUiStore } from '../store/ui-store'
 
 const ALL_LESSONS: Lesson[] = CHAPTERS.flatMap((c) => c.lessons)
@@ -16,6 +18,8 @@ export function LearnView() {
   const { completed, lastLesson, select, toggleCompleted } = useLearnStore()
   const appendCode = useEditorStore((s) => s.appendCode)
   const setView = useUiStore((s) => s.setView)
+  const solved = useProblemStore((s) => s.solved)
+  const selectProblem = useProblemStore((s) => s.select)
   const [query, setQuery] = useState('')
   const [engine, setEngine] = useState<DbEngine | null>(null)
   const [engineVersion, setEngineVersion] = useState(0)
@@ -34,6 +38,7 @@ export function LearnView() {
   const prev = ALL_LESSONS[index - 1]
   const next = ALL_LESSONS[index + 1]
   const done = completed.includes(current.id)
+  const relatedProblems = PROBLEMS.filter((p) => p.lessonId === current.id)
 
   const q = query.trim().toLowerCase()
   const visibleChapters = useMemo(
@@ -138,7 +143,39 @@ export function LearnView() {
             </Markdown>
           </div>
 
-          <div className="mt-10 flex items-center gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          {relatedProblems.length > 0 && (
+            <section className="mt-10 rounded-md border border-neutral-200 p-4 dark:border-neutral-700">
+              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                <ListChecks size={15} /> 이 단원 문제 풀기
+              </h2>
+              <ul className="flex flex-col gap-1">
+                {relatedProblems.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => {
+                        selectProblem(p.id)
+                        setView('problems')
+                      }}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    >
+                      <span
+                        className={[
+                          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+                          solved.includes(p.id) ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-neutral-300 dark:border-neutral-600',
+                        ].join(' ')}
+                      >
+                        {solved.includes(p.id) && <Check size={10} />}
+                      </span>
+                      <span className="flex-1">{p.title}</span>
+                      <span className="text-xs text-neutral-400">{['', '쉬움', '보통', '어려움'][p.difficulty]}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <div className="mt-6 flex items-center gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-700">
             <button disabled={!prev} onClick={() => prev && select(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800">
               <ChevronLeft size={16} /> {prev?.title ?? '이전'}
             </button>
