@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { EditorTabs } from '../components/editor/EditorTabs'
 import { SqlEditor } from '../components/editor/SqlEditor'
 import { AlterTableDialog } from '../components/forms/AlterTableDialog'
 import { CreateTableDialog } from '../components/forms/CreateTableDialog'
@@ -19,7 +20,7 @@ type Dialog = { type: 'create' } | { type: 'insert'; table: TableInfo } | { type
 
 export function PlaygroundView() {
   const { tables, outcome, notice, history, run, runFromUi } = useDbStore()
-  const { code, setCode, appendCode } = useEditorStore()
+  const { code, setCode, appendCode, activeId } = useEditorStore()
   const fontSize = useSettingsStore((s) => s.fontSize)
   const [dialog, setDialog] = useState<Dialog>(null)
   const [showErd, setShowErd] = useState(false)
@@ -71,8 +72,12 @@ export function PlaygroundView() {
         <Separator className="w-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
         <Panel>
           <Group orientation="vertical">
-            <Panel defaultSize="45%" minSize="20%" className="overflow-hidden">
-              <SqlEditor value={code} onChange={setCode} onRun={handleRun} tables={tables} fontSize={fontSize} />
+            <Panel defaultSize="45%" minSize="20%" className="flex flex-col overflow-hidden">
+              <EditorTabs />
+              {/* key 로 탭마다 에디터를 새로 만들어 실행 취소 기록이 섞이지 않게 한다 */}
+              <div className="min-h-0 flex-1">
+                <SqlEditor key={activeId} value={code} onChange={setCode} onRun={handleRun} tables={tables} fontSize={fontSize} />
+              </div>
             </Panel>
             <Separator className="h-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
             <Panel className="overflow-hidden">

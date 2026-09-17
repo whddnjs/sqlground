@@ -25,6 +25,7 @@ const SECTIONS: Array<{ title: string; rows: Row[] }> = [
       { keys: [`${MOD} + F`], what: '에디터 안에서 찾기 · 바꾸기' },
       { keys: ['Tab', 'Shift + Tab'], what: '들여쓰기 · 내어쓰기' },
       { keys: ['Ctrl + Space'], what: '자동완성 열기 (테이블 · 컬럼 · 키워드)' },
+      { keys: ['탭 더블클릭'], what: '연습장 쿼리 탭 이름 변경' },
     ],
   },
   {
