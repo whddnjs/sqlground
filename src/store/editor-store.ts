@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isRecord, readJson, writeJson } from '../lib/storage'
 
 const TABS_KEY = 'sqlground:tabs'
 /** 탭 도입 전에 쓰던 키. 있으면 첫 탭으로 옮긴다 */
@@ -31,28 +32,26 @@ interface Saved {
 let seq = 0
 const newId = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`
 
+const isTab = (v: unknown): v is EditorTab =>
+  isRecord(v) && typeof v.id === 'string' && typeof v.name === 'string' && typeof v.code === 'string'
+
 function load(): Saved {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TABS_KEY) ?? 'null') as Saved | null
-    if (saved && saved.tabs.length > 0) {
-      return { tabs: saved.tabs, activeId: saved.tabs.some((t) => t.id === saved.activeId) ? saved.activeId : saved.tabs[0].id }
-    }
-    const legacy = localStorage.getItem(LEGACY_CODE_KEY)
-    const first: EditorTab = { id: newId(), name: '쿼리 1', code: legacy ?? INITIAL_SQL }
-    return { tabs: [first], activeId: first.id }
-  } catch {
-    const first: EditorTab = { id: newId(), name: '쿼리 1', code: INITIAL_SQL }
-    return { tabs: [first], activeId: first.id }
+  const saved = readJson(TABS_KEY)
+  if (isRecord(saved) && Array.isArray(saved.tabs)) {
+    const tabs = saved.tabs.filter(isTab)
+    if (tabs.length > 0) return { tabs, activeId: tabs.some((t) => t.id === saved.activeId) ? (saved.activeId as string) : tabs[0].id }
   }
+  let legacy: string | null = null
+  try {
+    legacy = localStorage.getItem(LEGACY_CODE_KEY)
+  } catch {
+    // 접근 불가면 기본 예시로
+  }
+  const first: EditorTab = { id: newId(), name: '쿼리 1', code: legacy ?? INITIAL_SQL }
+  return { tabs: [first], activeId: first.id }
 }
 
-function persist(s: Saved) {
-  try {
-    localStorage.setItem(TABS_KEY, JSON.stringify(s))
-  } catch {
-    // 저장 불가 환경이면 무시
-  }
-}
+const persist = (s: Saved) => writeJson(TABS_KEY, s)
 
 /** "쿼리 N" 중 안 쓰는 가장 작은 번호 */
 export function nextTabName(tabs: EditorTab[]): string {

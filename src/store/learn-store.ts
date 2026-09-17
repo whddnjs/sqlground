@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isRecord, readJson, stringArray, writeJson } from '../lib/storage'
 
 const KEY = 'sqlground:learn'
 
@@ -8,21 +9,12 @@ interface Saved {
 }
 
 function load(): Saved {
-  try {
-    const s = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Saved>
-    return { completed: s.completed ?? [], lastLesson: s.lastLesson ?? null }
-  } catch {
-    return { completed: [], lastLesson: null }
-  }
+  const s = readJson(KEY)
+  if (!isRecord(s)) return { completed: [], lastLesson: null }
+  return { completed: stringArray(s.completed), lastLesson: typeof s.lastLesson === 'string' ? s.lastLesson : null }
 }
 
-function persist(s: Saved) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(s))
-  } catch {
-    // 저장 불가 환경이면 무시
-  }
-}
+const persist = (s: Saved) => writeJson(KEY, s)
 
 interface LearnState extends Saved {
   select(lessonId: string): void

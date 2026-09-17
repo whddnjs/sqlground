@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isRecord, readJson, stringArray, stringRecord, writeJson } from '../lib/storage'
 
 const KEY = 'sqlground:problems'
 
@@ -9,21 +10,12 @@ interface Saved {
 }
 
 function load(): Saved {
-  try {
-    const s = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Saved>
-    return { solved: s.solved ?? [], drafts: s.drafts ?? {}, lastProblem: s.lastProblem ?? null }
-  } catch {
-    return { solved: [], drafts: {}, lastProblem: null }
-  }
+  const s = readJson(KEY)
+  if (!isRecord(s)) return { solved: [], drafts: {}, lastProblem: null }
+  return { solved: stringArray(s.solved), drafts: stringRecord(s.drafts), lastProblem: typeof s.lastProblem === 'string' ? s.lastProblem : null }
 }
 
-function persist(s: Saved) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(s))
-  } catch {
-    // 저장 불가 환경이면 무시
-  }
-}
+const persist = (s: Saved) => writeJson(KEY, s)
 
 interface ProblemState extends Saved {
   select(id: string): void

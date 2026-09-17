@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
+import { isRecord, readJson, writeJson } from '../lib/storage'
 
 const KEY = 'sqlground:settings'
 
@@ -15,12 +16,15 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = { theme: 'system', fontSize: 14, foreignKeys: true }
 
+const THEMES: Theme[] = ['system', 'light', 'dark']
+
 function load(): Settings {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>
-    return { ...DEFAULT_SETTINGS, ...saved }
-  } catch {
-    return DEFAULT_SETTINGS
+  const s = readJson(KEY)
+  if (!isRecord(s)) return DEFAULT_SETTINGS
+  return {
+    theme: THEMES.includes(s.theme as Theme) ? (s.theme as Theme) : DEFAULT_SETTINGS.theme,
+    fontSize: typeof s.fontSize === 'number' && s.fontSize >= 11 && s.fontSize <= 22 ? s.fontSize : DEFAULT_SETTINGS.fontSize,
+    foreignKeys: typeof s.foreignKeys === 'boolean' ? s.foreignKeys : DEFAULT_SETTINGS.foreignKeys,
   }
 }
 
@@ -32,11 +36,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...load(),
   update(patch) {
     const next: Settings = { theme: get().theme, fontSize: get().fontSize, foreignKeys: get().foreignKeys, ...patch }
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next))
-    } catch {
-      // 저장 불가 환경이면 무시
-    }
+    writeJson(KEY, next)
     set(next)
   },
 }))

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { Header } from './components/layout/Header'
 import { NavRail } from './components/layout/NavRail'
 import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
@@ -64,12 +65,15 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onRun={() => run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1">
+          {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 메뉴로 옮기면 다시 시도한다 */}
+          <ErrorBoundary key={view}>
           {view === 'playground' && <PlaygroundView />}
           <Suspense fallback={<Centered>불러오는 중…</Centered>}>
             {view === 'learn' && <LearnView />}
             {view === 'problems' && <ProblemsView />}
             {view === 'settings' && <SettingsView />}
           </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}

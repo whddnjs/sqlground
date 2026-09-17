@@ -1,22 +1,10 @@
 import { create } from 'zustand'
+import { readJson, stringArray, writeJson } from '../lib/storage'
 
 const KEY = 'sqlground:collapsed-tables'
 
-function load(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[]
-  } catch {
-    return []
-  }
-}
-
-function persist(names: string[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(names))
-  } catch {
-    // 저장 불가 환경이면 무시
-  }
-}
+const load = (): string[] => stringArray(readJson(KEY))
+const persist = (names: string[]) => writeJson(KEY, names)
 
 interface SchemaUiState {
   /** 접힌 테이블 이름. 기본은 모두 펼침 */

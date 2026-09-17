@@ -1,25 +1,13 @@
 import { create } from 'zustand'
+import { readJson, stringRecord, writeJson } from '../lib/storage'
 
 const KEY = 'sqlground:descriptions'
 
 /** "테이블.컬럼" → 한글 설명. SQLite 에는 컬럼 주석이 없어 브라우저에 따로 저장한다 */
 type Descriptions = Record<string, string>
 
-function load(): Descriptions {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Descriptions
-  } catch {
-    return {}
-  }
-}
-
-function persist(d: Descriptions) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(d))
-  } catch {
-    // 저장 불가 환경이면 무시
-  }
-}
+const load = (): Descriptions => stringRecord(readJson(KEY))
+const persist = (d: Descriptions) => writeJson(KEY, d)
 
 interface DescriptionState {
   descriptions: Descriptions
