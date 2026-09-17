@@ -1,9 +1,10 @@
 import { Check, ChevronLeft, ChevronRight, ListChecks, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import Markdown from 'react-markdown'
+import Markdown, { type Components } from 'react-markdown'
 import { RunnableSql } from '../components/learn/RunnableSql'
 import type { DbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
+import { LessonDbContext } from '../learn/lesson-db-context'
 import { getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import type { Lesson } from '../learn/types'
 import { PROBLEMS } from '../problems/content'
@@ -13,6 +14,22 @@ import { useProblemStore } from '../store/problem-store'
 import { useUiStore } from '../store/ui-store'
 
 const ALL_LESSONS: Lesson[] = CHAPTERS.flatMap((c) => c.lessons)
+
+const schemaKey = (tables: TableInfo[]) => tables.map((t) => `${t.name}(${t.columns.map((c) => c.name).join(',')})`).join(';')
+
+/**
+ * 모듈 상수로 고정한다. 렌더마다 새 객체를 넘기면 react-markdown 이 예제 블록을 다시 마운트해
+ * 실행 결과(state)가 사라진다. 바뀌는 값은 LessonDbContext 로 전달한다.
+ */
+const MARKDOWN_COMPONENTS: Components = {
+  pre: ({ children }) => <>{children}</>,
+  code: ({ className, children }) => {
+    const text = String(children).replace(/\n$/, '')
+    if (className === 'language-sql') return <RunnableSql initialSql={text} />
+    if (className) return <pre className="my-4 overflow-x-auto rounded-md bg-neutral-100 p-3 font-mono text-[13px] dark:bg-neutral-800">{text}</pre>
+    return <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[0.9em] dark:bg-neutral-800">{text}</code>
+  },
+}
 
 export function LearnView() {
   const { completed, lastLesson, select, toggleCompleted } = useLearnStore()
@@ -55,7 +72,9 @@ export function LearnView() {
   const run = (sql: string): ExecOutcome => {
     if (!engine) return { results: [], error: { message: '학습용 DB 를 아직 불러오는 중입니다', sql } }
     const outcome = engine.exec(sql)
-    setTables(engine.getTables())
+    // 구조가 실제로 바뀐 경우에만 갱신해 불필요한 다시 그리기를 막는다
+    const next = engine.getTables()
+    setTables((prev) => (schemaKey(prev) === schemaKey(next) ? prev : next))
     return outcome
   }
   const openInPlayground = (sql: string) => {
@@ -128,19 +147,9 @@ export function LearnView() {
           <h1 className="mb-4 text-2xl font-semibold">{current.title}</h1>
 
           <div key={`${current.id}-${engineVersion}`} className="lesson-body">
-            <Markdown
-              components={{
-                pre: ({ children }) => <>{children}</>,
-                code: ({ className, children }) => {
-                  const text = String(children).replace(/\n$/, '')
-                  if (className === 'language-sql') return <RunnableSql initialSql={text} tables={tables} onRun={run} onOpenInPlayground={openInPlayground} />
-                  if (className) return <pre className="my-4 overflow-x-auto rounded-md bg-neutral-100 p-3 font-mono text-[13px] dark:bg-neutral-800">{text}</pre>
-                  return <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[0.9em] dark:bg-neutral-800">{text}</code>
-                },
-              }}
-            >
-              {current.body}
-            </Markdown>
+            <LessonDbContext.Provider value={{ tables, run, openInPlayground }}>
+              <Markdown components={MARKDOWN_COMPONENTS}>{current.body}</Markdown>
+            </LessonDbContext.Provider>
           </div>
 
           {relatedProblems.length > 0 && (

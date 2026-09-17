@@ -3,7 +3,8 @@ import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
 import { ExternalLink, Play, RotateCcw } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import type { ExecOutcome, TableInfo } from '../../db/engine'
+import type { ExecOutcome } from '../../db/engine'
+import { useLessonDb } from '../../learn/lesson-db-context'
 import { sqlExtensions } from '../../lib/editor-schema'
 import { explainSqlError } from '../../lib/error-messages'
 import { useEffectiveTheme, useSettingsStore } from '../../store/settings-store'
@@ -11,15 +12,11 @@ import { ResultGrid } from '../result/ResultGrid'
 
 interface Props {
   initialSql: string
-  /** 자동완성용 학습 DB 테이블 */
-  tables: TableInfo[]
-  /** 학습용 DB 에서 실행 */
-  onRun(sql: string): ExecOutcome
-  onOpenInPlayground(sql: string): void
 }
 
 /** 학습 페이지의 예제 블록. 고쳐서 다시 실행할 수 있고, 결과가 바로 아래에 붙는다 */
-export function RunnableSql({ initialSql, tables, onRun, onOpenInPlayground }: Props) {
+export function RunnableSql({ initialSql }: Props) {
+  const { tables, run: onRun, openInPlayground: onOpenInPlayground } = useLessonDb()
   const [code, setCode] = useState(initialSql)
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
   const theme = useEffectiveTheme()
@@ -28,7 +25,9 @@ export function RunnableSql({ initialSql, tables, onRun, onOpenInPlayground }: P
   // 단축키 핸들러가 항상 최신 code 를 보도록 ref 로 둔다 (extensions 를 매번 새로 만들지 않기 위해)
   const codeRef = useRef(code)
   codeRef.current = code
-  const run = () => setOutcome(onRun(codeRef.current))
+  const onRunRef = useRef(onRun)
+  onRunRef.current = onRun
+  const run = () => setOutcome(onRunRef.current(codeRef.current))
   const extensions = useMemo(
     () => [
       ...sqlExtensions(tables),
