@@ -23,6 +23,7 @@
 pnpm install
 pnpm dev        # 개발 서버
 pnpm test       # 단위 테스트 (엔진, SQL 빌더, 학습 예제·문제 정답 실행 검증)
+pnpm e2e        # 브라우저 회귀 테스트 (Playwright, 빌드 결과물 대상)
 pnpm build      # 정적 빌드 → dist/
 ```
 
