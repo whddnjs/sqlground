@@ -3,6 +3,7 @@ import { createEngine } from '../db/create-engine'
 import type { ExecOutcome, TableInfo } from '../db/engine'
 import { clearDb, loadDb, saveDb } from '../db/persist'
 import type { Preset } from '../db/presets'
+import { runWithSnapshot } from '../db/run-with-snapshot'
 import { SnapshotStack } from '../db/snapshot'
 import { useSettingsStore } from './settings-store'
 
@@ -56,9 +57,21 @@ const SAVE_DELAY_MS = 500
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let historyId = 0
 
-function scheduleSave() {
+/** 저장할 변경이 남아 있는지. 트랜잭션 중에는 저장을 미루므로 따로 기억해 둔다 */
+let dirty = false
+
+/**
+ * 변경이 있으면 잠시 뒤 IndexedDB 에 저장한다.
+ * 저장은 export 를 부르고, export 는 연결을 다시 열어 진행 중인 트랜잭션을 없앤다.
+ * 그래서 트랜잭션이 열려 있으면 저장하지 않고 dirty 로 남겨, 트랜잭션이 끝난 뒤의 실행에서 저장한다.
+ */
+function scheduleSave(changed = true) {
+  if (changed) dirty = true
+  if (!dirty) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
+    if (engine.inTransaction()) return
+    dirty = false
     void saveDb(engine.export())
   }, SAVE_DELAY_MS)
 }
@@ -94,15 +107,13 @@ export const useDbStore = create<DbState>((set, get) => {
     },
 
     run(sql) {
-      snapshots.push(engine.export())
-      const outcome = engine.exec(sql)
+      const { outcome, changed } = runWithSnapshot(engine, snapshots, sql)
       refresh({ outcome, notice: null, history: record(sql, 'editor', !outcome.error) })
-      scheduleSave()
+      scheduleSave(changed)
     },
 
     runFromUi(sql, refreshSql) {
-      snapshots.push(engine.export())
-      const outcome = engine.exec(sql)
+      const { outcome, changed } = runWithSnapshot(engine, snapshots, sql)
       const history = record(sql, 'ui', !outcome.error)
       if (outcome.error || !refreshSql) {
         refresh({ outcome, notice: null, history })
@@ -110,12 +121,11 @@ export const useDbStore = create<DbState>((set, get) => {
         const rowsAffected = outcome.results.reduce((n, r) => n + r.rowsAffected, 0)
         refresh({ outcome: engine.exec(refreshSql), notice: { sql, rowsAffected }, history })
       }
-      scheduleSave()
+      scheduleSave(changed)
     },
 
     loadPreset(preset) {
-      snapshots.push(engine.export())
-      const outcome = engine.exec(preset.sql)
+      const { outcome } = runWithSnapshot(engine, snapshots, preset.sql)
       refresh({
         outcome: outcome.error ? outcome : null,
         notice: outcome.error ? null : { sql: `-- 샘플 "${preset.name}" 로드: ${preset.tables.join(', ')}`, rowsAffected: 0 },
@@ -136,6 +146,7 @@ export const useDbStore = create<DbState>((set, get) => {
       snapshots.push(engine.export())
       await engine.reset()
       clearTimeout(saveTimer)
+      dirty = false
       await clearDb()
       refresh({ outcome: null, notice: null })
     },

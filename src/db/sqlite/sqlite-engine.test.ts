@@ -112,6 +112,30 @@ describe('SqliteEngine', () => {
     expect(off.exec('INSERT INTO b VALUES (98)').error).toBeUndefined()
   })
 
+  it('changeToken 은 데이터나 구조가 바뀔 때만 달라진다', () => {
+    engine.exec('CREATE TABLE t (id INTEGER)')
+    const t0 = engine.changeToken()
+    engine.exec('SELECT * FROM t; SELECT 1;')
+    expect(engine.changeToken()).toBe(t0)
+    engine.exec('INSERT INTO t VALUES (1)')
+    const t1 = engine.changeToken()
+    expect(t1).not.toBe(t0)
+    engine.exec('ALTER TABLE t ADD COLUMN x TEXT')
+    expect(engine.changeToken()).not.toBe(t1)
+  })
+
+  it('inTransaction 은 BEGIN 과 COMMIT/ROLLBACK 을 따라간다', () => {
+    engine.exec('CREATE TABLE t (id INTEGER)')
+    expect(engine.inTransaction()).toBe(false)
+    engine.exec('BEGIN; INSERT INTO t VALUES (1);')
+    expect(engine.inTransaction()).toBe(true)
+    engine.exec('SAVEPOINT s; ROLLBACK TO s;')
+    expect(engine.inTransaction()).toBe(true)
+    engine.exec('ROLLBACK')
+    expect(engine.inTransaction()).toBe(false)
+    expect(engine.exec('SELECT count(*) FROM t').results[0].rows).toEqual([[0]])
+  })
+
   it('export 한 바이너리를 import 하면 데이터가 복원된다', async () => {
     engine.exec(`CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('hello');`)
     const snapshot = engine.export()

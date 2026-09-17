@@ -53,4 +53,11 @@ export interface DbEngine {
   reset(): Promise<void>
   /** FOREIGN KEY 제약 강제 여부 변경. 즉시 적용 */
   setForeignKeys(enabled: boolean): void
+  /**
+   * 데이터나 구조가 바뀌면 값이 달라지는 토큰. 실행 전후를 비교해 "이 실행이 DB 를 바꿨는가" 를 판단한다.
+   * export() 를 부르면 연결이 다시 열려 초기화되므로, 비교할 두 값 사이에는 export 가 없어야 한다.
+   */
+  changeToken(): string
+  /** BEGIN 후 COMMIT/ROLLBACK 전인지. 이때 export 하면 연결이 닫히며 트랜잭션이 사라진다 */
+  inTransaction(): boolean
 }

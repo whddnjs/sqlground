@@ -18,10 +18,13 @@ export interface SqliteEngineOptions {
 }
 
 const DML_PATTERN = /^\s*(insert|update|delete|replace)\b/i
+const TX_BEGIN = /^\s*(begin|savepoint)\b/i
+const TX_END = /^\s*(commit|end|rollback(?!\s+to\b|\s+transaction\s+to\b))\b/i
 
 export class SqliteEngine implements DbEngine {
   private sqlJs: SqlJsStatic | null = null
   private db: Database | null = null
+  private txOpen = false
   private options: SqliteEngineOptions
 
   constructor(options: SqliteEngineOptions = {}) {
@@ -40,8 +43,20 @@ export class SqliteEngine implements DbEngine {
     this.db = this.open()
   }
 
+  changeToken(): string {
+    const db = this.requireDb()
+    const changes = db.exec('SELECT total_changes()')[0].values[0][0]
+    const schema = db.exec('PRAGMA schema_version')[0].values[0][0]
+    return `${changes}:${schema}`
+  }
+
+  inTransaction(): boolean {
+    return this.txOpen
+  }
+
   private open(data?: Uint8Array): Database {
     const { Database } = this.requireSqlJs()
+    this.txOpen = false
     const db = new Database(data)
     this.applyPragmas(db)
     return db
@@ -72,6 +87,8 @@ export class SqliteEngine implements DbEngine {
         const rows: SqlValue[][] = []
         while (stmt.step()) rows.push(stmt.get())
         const rowsAffected = DML_PATTERN.test(statementSql) ? db.getRowsModified() : 0
+        if (TX_BEGIN.test(statementSql)) this.txOpen = true
+        else if (TX_END.test(statementSql)) this.txOpen = false
         results.push({
           sql: statementSql,
           columns,
@@ -134,6 +151,8 @@ export class SqliteEngine implements DbEngine {
   export(): Uint8Array {
     const db = this.requireDb()
     const data = db.export()
+    // sql.js 의 export 는 연결을 닫았다 다시 연다. PRAGMA 는 다시 걸고, 열려 있던 트랜잭션은 사라진다
+    this.txOpen = false
     this.applyPragmas(db)
     return data
   }
