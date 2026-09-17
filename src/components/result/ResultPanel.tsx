@@ -4,7 +4,7 @@ import type { ExecOutcome, SqlValue, TableInfo } from '../../db/engine'
 import { downloadCsv } from '../../lib/csv'
 import { detectEditableTarget } from '../../lib/editable-select'
 import { explainSqlError } from '../../lib/error-messages'
-import { buildDelete, buildUpdate } from '../../lib/sql-builder'
+import { buildDelete, buildDeleteMany, buildUpdate } from '../../lib/sql-builder'
 import type { HistoryEntry, UiNotice } from '../../store/db-store'
 import { ResultGrid } from './ResultGrid'
 
@@ -102,6 +102,11 @@ function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome'
                   const ref = { table: editable.table.name, pkColumn: editable.pk.name, pkValue: pkValue as string | number }
                   const sql = buildDelete(ref)
                   if (window.confirm(`이 행을 삭제할까요?\n\n${sql}`)) onRunFromUi(sql, r.sql)
+                }}
+                onDeleteRows={(pkValues: SqlValue[]) => {
+                  if (!editable) return
+                  const sql = buildDeleteMany(editable.table.name, editable.pk.name, pkValues as Array<string | number>)
+                  if (window.confirm(`선택한 ${pkValues.length}행을 삭제할까요?\n\n${sql}`)) onRunFromUi(sql, r.sql)
                 }}
               />
             )}

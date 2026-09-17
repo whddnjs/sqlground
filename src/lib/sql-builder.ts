@@ -89,6 +89,12 @@ export function buildDelete(ref: RowRef): string {
   return `DELETE FROM ${identifier(ref.table)} WHERE ${identifier(ref.pkColumn)} = ${pkLiteral(ref.pkValue)};`
 }
 
+/** 여러 행을 한 문장으로 삭제. pkValues 가 하나면 buildDelete 와 같은 모양 */
+export function buildDeleteMany(table: string, pkColumn: string, pkValues: Array<string | number>): string {
+  if (pkValues.length === 1) return buildDelete({ table, pkColumn, pkValue: pkValues[0] })
+  return `DELETE FROM ${identifier(table)} WHERE ${identifier(pkColumn)} IN (${pkValues.map(pkLiteral).join(', ')});`
+}
+
 export function buildDropTable(table: string): string {
   return `DROP TABLE ${identifier(table)};`
 }

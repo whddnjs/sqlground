@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SqliteEngine } from '../db/sqlite/sqlite-engine'
-import { buildAddColumn, buildCreateTable, buildDelete, buildDropColumn, buildDropTable, buildInsert, buildRenameColumn, buildRenameTable, buildSelectAll, buildUpdate, emptyColumn, literal } from './sql-builder'
+import { buildAddColumn, buildCreateTable, buildDelete, buildDeleteMany, buildDropColumn, buildDropTable, buildInsert, buildRenameColumn, buildRenameTable, buildSelectAll, buildUpdate, emptyColumn, literal } from './sql-builder'
 
 describe('sql-builder', () => {
   it('CREATE TABLE: 제약 조건을 순서대로 붙이고 PK 에는 NOT NULL/UNIQUE 를 중복해서 붙이지 않는다', () => {
@@ -36,6 +36,9 @@ describe('sql-builder', () => {
     const ref = { table: 'users', pkColumn: 'id', pkValue: 3 }
     expect(buildUpdate(ref, 'name', 'TEXT', '지영')).toBe("UPDATE users SET name = '지영' WHERE id = 3;")
     expect(buildDelete({ ...ref, pkValue: 'abc' })).toBe("DELETE FROM users WHERE id = 'abc';")
+    expect(buildDeleteMany('users', 'id', [1, 2, 5])).toBe('DELETE FROM users WHERE id IN (1, 2, 5);')
+    expect(buildDeleteMany('users', 'code', ['a', "b'c"])).toBe("DELETE FROM users WHERE code IN ('a', 'b''c');")
+    expect(buildDeleteMany('users', 'id', [7])).toBe('DELETE FROM users WHERE id = 7;')
     expect(buildDropTable('order items')).toBe('DROP TABLE "order items";')
     expect(buildSelectAll('users')).toBe('SELECT * FROM users LIMIT 100;')
   })

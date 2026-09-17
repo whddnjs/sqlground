@@ -12,6 +12,8 @@ interface Props {
   editable?: EditableTarget | null
   onUpdateCell?(pkValue: SqlValue, column: string, type: string, value: string | null): void
   onDeleteRow?(pkValue: SqlValue): void
+  /** 체크박스로 고른 여러 행 삭제 */
+  onDeleteRows?(pkValues: SqlValue[]): void
 }
 
 interface Editing {
@@ -20,9 +22,12 @@ interface Editing {
   value: string
 }
 
-export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Props) {
+export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDeleteRows }: Props) {
   const [page, setPage] = useState(0)
   const [editing, setEditing] = useState<Editing | null>(null)
+  // 선택한 행의 PK 값. 결과가 갱신돼도 PK 기준이라 유지된다
+  const [selected, setSelected] = useState<SqlValue[]>([])
+  const selectable = !!editable && !!onDeleteRows
   const rows = result.rows.slice(0, MAX_ROWS)
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const current = Math.min(page, pageCount - 1)
@@ -37,6 +42,15 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
     setEditing(null)
   }
 
+  const pkOf = (row: SqlValue[]) => (editable ? row[editable.pkIndex] : null)
+  const visiblePks = visible.map(pkOf)
+  const allVisibleSelected = visiblePks.length > 0 && visiblePks.every((pk) => selected.includes(pk))
+  const toggleRow = (pk: SqlValue) => setSelected((cur) => (cur.includes(pk) ? cur.filter((x) => x !== pk) : [...cur, pk]))
+  const toggleAllVisible = () =>
+    setSelected((cur) => (allVisibleSelected ? cur.filter((x) => !visiblePks.includes(x)) : [...new Set([...cur, ...visiblePks])]))
+  // 이미 지워진 행은 선택에서 뺀다
+  const liveSelected = selected.filter((pk) => rows.some((r) => pkOf(r) === pk))
+
   return (
     <div className="flex flex-col gap-2">
       {result.rows.length > MAX_ROWS && (
@@ -45,12 +59,30 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
         </p>
       )}
       {editable && (
-        <p className="text-xs text-neutral-500">셀을 더블클릭하면 값을 고칠 수 있습니다. Enter 로 저장, Esc 로 취소, NULL 버튼으로 비우기.</p>
+        <div className="flex items-center gap-2 text-xs text-neutral-500">
+          <span>셀을 더블클릭하면 값을 고칠 수 있습니다. Enter 로 저장, Esc 로 취소, NULL 버튼으로 비우기.</span>
+          {selectable && liveSelected.length > 0 && (
+            <button
+              onClick={() => {
+                onDeleteRows?.(liveSelected)
+                setSelected([])
+              }}
+              className="ml-auto flex items-center gap-1 rounded border border-red-300 px-2 py-0.5 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
+            >
+              <Trash2 size={12} /> 선택한 {liveSelected.length}행 삭제
+            </button>
+          )}
+        </div>
       )}
       <div className="overflow-x-auto rounded border border-neutral-200 dark:border-neutral-700">
         <table className="min-w-full text-sm">
           <thead className="bg-neutral-100 dark:bg-neutral-800">
             <tr>
+              {selectable && (
+                <th className="w-7 px-2 py-1">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="이 페이지 모두 선택" />
+                </th>
+              )}
               <th className="px-2 py-1 text-right text-xs text-neutral-400">#</th>
               {result.columns.map((c, i) => (
                 <th key={i} className="px-3 py-1 text-left font-medium">
@@ -64,7 +96,12 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow }: Prop
             {visible.map((row, vi) => {
               const ri = offset + vi
               return (
-                <tr key={ri} className="border-t border-neutral-100 dark:border-neutral-800">
+                <tr key={ri} className={['border-t border-neutral-100 dark:border-neutral-800', selectable && selected.includes(pkOf(row)) ? 'bg-blue-50 dark:bg-blue-950/30' : ''].join(' ')}>
+                  {selectable && (
+                    <td className="px-2 py-1">
+                      <input type="checkbox" checked={selected.includes(pkOf(row))} onChange={() => toggleRow(pkOf(row))} aria-label={`${ri + 1}행 선택`} />
+                    </td>
+                  )}
                   <td className="px-2 py-1 text-right text-xs text-neutral-400">{ri + 1}</td>
                   {row.map((v, ci) => {
                     const isEditing = editing?.row === ri && editing.col === ci
