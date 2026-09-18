@@ -63,6 +63,21 @@ ORDER BY salary DESC;
 
 이 패턴("그룹별 상위 N개")은 실무에서 정말 자주 씁니다. GROUP BY 로는 깔끔하게 안 되는 문제입니다.
 
+\`rn = 1\` 을 \`rn <= 2\` 로 바꾸면 "그룹별 상위 2개" 가 됩니다. 쇼핑몰 샘플로 해 봅니다.
+
+\`\`\`sql
+-- 카테고리마다 비싼 상품 2개
+WITH ranked AS (
+  SELECT category, name, price,
+         row_number() OVER (PARTITION BY category ORDER BY price DESC) AS rn
+  FROM products
+)
+SELECT category, rn, name, price
+FROM ranked
+WHERE rn <= 2
+ORDER BY category, rn;
+\`\`\`
+
 ## 누적합과 이동 평균
 
 \`ORDER BY\` 를 넣으면 "여기까지의" 집계가 됩니다.
@@ -79,6 +94,35 @@ ORDER BY month;
 \`\`\`
 
 \`sum(sum(...)) OVER\` 가 낯설 텐데, 안쪽 sum 은 GROUP BY 집계이고 바깥 sum 은 그 결과를 누적하는 윈도우 함수입니다.
+
+범위를 직접 정할 수도 있습니다. \`ROWS BETWEEN 2 PRECEDING AND CURRENT ROW\` 는 "앞의 두 행부터 지금 행까지" 라서 3개월 이동 평균이 됩니다.
+
+\`\`\`sql
+WITH monthly AS (
+  SELECT strftime('%Y-%m', o.ordered_at) AS month,
+         sum(oi.quantity * oi.unit_price) AS revenue
+  FROM orders o JOIN order_items oi ON oi.order_id = o.id
+  WHERE o.status <> 'cancelled'
+  GROUP BY month
+)
+SELECT month, revenue,
+       round(avg(revenue) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)) AS moving_avg_3m
+FROM monthly
+ORDER BY month;
+\`\`\`
+
+## 전체에서 차지하는 비율
+
+\`OVER ()\` 처럼 괄호를 비우면 전체가 한 그룹입니다. 각 행의 값을 전체 합으로 나누면 비율이 됩니다.
+
+\`\`\`sql
+SELECT category,
+       sum(price * stock) AS stock_value,
+       round(100.0 * sum(price * stock) / sum(sum(price * stock)) OVER (), 1) AS percent
+FROM products
+GROUP BY category
+ORDER BY percent DESC;
+\`\`\`
 
 ## 앞뒤 행 참조: LAG, LEAD
 
@@ -100,6 +144,20 @@ ORDER BY month;
 \`\`\`
 
 첫 행의 \`prev_month\` 는 앞 행이 없어 NULL 입니다. \`lag(revenue, 1, 0)\` 처럼 세 번째 인자로 기본값을 줄 수 있습니다.
+
+\`lead\` 는 반대로 **다음 행**을 봅니다. 고객별로 다음 주문까지 며칠이 걸렸는지 구합니다.
+
+\`\`\`sql
+SELECT customer_id, ordered_at,
+       lead(ordered_at) OVER (PARTITION BY customer_id ORDER BY ordered_at) AS next_order,
+       CAST(julianday(lead(ordered_at) OVER (PARTITION BY customer_id ORDER BY ordered_at))
+            - julianday(ordered_at) AS INTEGER) AS days_gap
+FROM orders
+WHERE customer_id IN (9, 13)
+ORDER BY customer_id, ordered_at;
+\`\`\`
+
+고객의 마지막 주문은 다음 행이 없어 NULL 입니다.
 
 > 윈도우 함수는 SQLite 3.25 이상, MySQL 8.0 이상, PostgreSQL 전 버전에서 지원합니다. 문법은 거의 같습니다.
 `,
@@ -194,10 +252,61 @@ SELECT count(*) - 1 AS total_reports   -- 본인 제외
 FROM team;
 \`\`\`
 
+## 아래에서 위로: 상사 체인
+
+방향을 뒤집으면 한 사람에서 출발해 대표까지 올라갑니다. JOIN 조건의 좌우만 바뀝니다.
+
+\`\`\`sql
+WITH RECURSIVE chain(id, name, title, manager_id, step) AS (
+  SELECT id, name, title, manager_id, 0
+  FROM employees
+  WHERE name = '한주니'
+
+  UNION ALL
+
+  SELECT m.id, m.name, m.title, m.manager_id, c.step + 1
+  FROM employees m
+  JOIN chain c ON m.id = c.manager_id
+)
+SELECT step, name, title FROM chain ORDER BY step;
+\`\`\`
+
+## 재귀로 날짜 목록 만들기
+
+재귀 CTE 는 계층 데이터가 없어도 씁니다. 연속된 숫자나 날짜를 만들어 두고 LEFT JOIN 하면 **데이터가 없는 날도 0 으로** 보여 줄 수 있습니다.
+
+\`\`\`sql
+WITH RECURSIVE days(day) AS (
+  SELECT '2024-11-10'
+  UNION ALL
+  SELECT date(day, '+1 day') FROM days WHERE day < '2024-11-20'
+)
+SELECT d.day, count(o.id) AS orders
+FROM days d
+LEFT JOIN orders o ON o.ordered_at = d.day
+GROUP BY d.day
+ORDER BY d.day;
+\`\`\`
+
+\`WHERE day < '2024-11-20'\` 이 재귀를 끝내는 조건입니다.
+
 ## 무한 루프 주의
 
 데이터에 순환(A 의 상사가 B, B 의 상사가 A)이 있으면 재귀가 끝나지 않습니다.
 SQLite 는 결과가 너무 커지면 멈추지만, 실무에서는 \`depth < 20\` 같은 조건을 재귀 행의 WHERE 에 넣어 안전장치를 두는 게 좋습니다.
+
+\`\`\`sql
+-- depth 조건으로 두 단계(대표, 팀장)까지만 내려갑니다
+WITH RECURSIVE org(id, name, title, depth) AS (
+  SELECT id, name, title, 0 FROM employees WHERE manager_id IS NULL
+  UNION ALL
+  SELECT e.id, e.name, e.title, o.depth + 1
+  FROM employees e
+  JOIN org o ON e.manager_id = o.id
+  WHERE o.depth < 1
+)
+SELECT depth, name, title FROM org ORDER BY depth, id;
+\`\`\`
 
 > \`WITH RECURSIVE\` 는 SQLite, PostgreSQL, MySQL 8.0 이상에서 같은 문법입니다.
 `,

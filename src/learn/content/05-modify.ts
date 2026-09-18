@@ -38,6 +38,18 @@ CREATE TABLE memos (
 SQLite 는 타입을 느슨하게 다룹니다. \`INTEGER\` 열에 \`'abc'\` 를 넣어도 에러 없이 들어갑니다(**타입 친화성**).
 MySQL, PostgreSQL 은 엄격하게 거부하니 실무에서는 타입에 맞는 값을 넣는 습관을 들이세요. 또 그쪽에는 \`VARCHAR(100)\`, \`DATE\`, \`BOOLEAN\`, \`DECIMAL\` 같은 타입이 더 있습니다.
 
+값이 실제로 어떤 타입으로 저장됐는지는 \`typeof\` 로 확인합니다.
+
+\`\`\`sql
+SELECT typeof(1) AS a, typeof(1.5) AS b, typeof('1') AS c, typeof(NULL) AS d;
+\`\`\`
+
+\`\`\`sql
+SELECT name, typeof(price) AS price_type, typeof(name) AS name_type
+FROM products
+LIMIT 3;
+\`\`\`
+
 ## 제약 (constraint)
 
 | 제약 | 뜻 |
@@ -57,6 +69,14 @@ MySQL, PostgreSQL 은 엄격하게 거부하니 실무에서는 타입에 맞는
 INSERT INTO memos (title, priority) VALUES ('테스트', 9);
 \`\`\`
 
+\`DEFAULT\` 도 확인합니다. \`title\` 만 넣으면 나머지는 정해 둔 기본값으로 채워집니다.
+
+\`\`\`sql
+INSERT INTO memos (title) VALUES ('기본값 확인');
+
+SELECT * FROM memos;
+\`\`\`
+
 ## 만든 테이블 확인
 
 \`\`\`sql
@@ -64,6 +84,25 @@ SELECT sql FROM sqlite_master WHERE name = 'memos';
 \`\`\`
 
 연습장에서는 스키마 브라우저의 **만들기** 버튼으로 폼을 채우면 이 문장이 자동으로 만들어집니다. 폼과 생성된 SQL 을 나란히 보면 문법이 빨리 익숙해집니다.
+
+## 조회 결과로 테이블 만들기
+
+\`CREATE TABLE ... AS SELECT\` 는 조회 결과를 그대로 새 테이블로 저장합니다. 임시 작업용 복사본이나 백업을 만들 때 씁니다.
+
+\`\`\`sql
+DROP TABLE IF EXISTS seoul_customers;
+
+CREATE TABLE seoul_customers AS
+SELECT id, name, email FROM customers WHERE city = '서울';
+
+SELECT * FROM seoul_customers;
+\`\`\`
+
+열 이름과 데이터만 복사되고 **PRIMARY KEY, NOT NULL 같은 제약은 따라오지 않습니다.**
+
+\`\`\`sql
+SELECT sql FROM sqlite_master WHERE name = 'seoul_customers';
+\`\`\`
 `,
     },
     {
@@ -134,6 +173,39 @@ SELECT * FROM memos WHERE priority = 5;
 ## 열 목록 생략
 
 \`INSERT INTO memos VALUES (...)\` 처럼 열 목록을 빼면 **모든 열을 테이블 정의 순서대로** 넣어야 합니다. 나중에 열이 추가되면 깨지므로 항상 열 목록을 적는 편이 안전합니다.
+
+\`\`\`sql
+-- id 자리에 NULL 을 주면 자동 번호가 붙습니다
+INSERT INTO memos VALUES (NULL, '열 목록 없이 넣기', NULL, 3, datetime('now', 'localtime'));
+
+SELECT id, title, priority FROM memos;
+\`\`\`
+
+## 있으면 고치고, 없으면 넣기 (UPSERT)
+
+같은 키가 이미 있으면 INSERT 는 제약 위반으로 실패합니다. \`ON CONFLICT\` 를 붙이면 그때 할 일을 정할 수 있습니다.
+
+\`\`\`sql
+INSERT INTO memos (id, title, priority) VALUES (1, 'SQL 공부 (수정됨)', 1)
+ON CONFLICT (id) DO UPDATE SET title = excluded.title, priority = excluded.priority;
+
+SELECT id, title, priority FROM memos WHERE id = 1;
+\`\`\`
+
+\`excluded\` 는 "넣으려다 충돌한 그 행" 입니다. 그냥 건너뛰려면 \`ON CONFLICT (id) DO NOTHING\` 을 씁니다.
+
+> PostgreSQL 은 같은 문법이고, MySQL 은 \`INSERT ... ON DUPLICATE KEY UPDATE\` 를 씁니다.
+
+## 넣은 행 바로 돌려받기 (RETURNING)
+
+자동으로 붙은 \`id\` 나 DEFAULT 값을 다시 조회하지 않고 바로 받습니다.
+
+\`\`\`sql
+INSERT INTO memos (title) VALUES ('방금 넣은 메모')
+RETURNING id, title, priority, created_at;
+\`\`\`
+
+> SQLite 3.35 이상과 PostgreSQL 에서 됩니다. MySQL 에는 없어 \`LAST_INSERT_ID()\` 를 씁니다.
 `,
     },
     {
@@ -162,6 +234,38 @@ SET stock = 50, price = 16000
 WHERE name = '휴대용 선풍기';
 
 SELECT name, price, stock FROM products WHERE name = '휴대용 선풍기';
+\`\`\`
+
+## 바꾸기 전에 SELECT 로 확인
+
+UPDATE 는 결과 표가 없어서 무엇이 바뀌었는지 눈에 안 보입니다. **같은 WHERE 로 먼저 조회**해서 대상을 확인하는 습관을 들이세요.
+
+\`\`\`sql
+-- 1) 대상 확인: 재고가 20개 미만인 상품
+SELECT name, stock FROM products WHERE stock < 20;
+\`\`\`
+
+\`\`\`sql
+-- 2) WHERE 를 그대로 옮겨 UPDATE
+UPDATE products SET stock = stock + 50 WHERE stock < 20;
+
+SELECT name, stock FROM products ORDER BY stock LIMIT 5;
+\`\`\`
+
+## 행마다 다른 값으로: CASE
+
+\`\`\`sql
+-- 전자기기는 5000원, 가구는 10000원 인하. 다른 카테고리는 WHERE 에서 빼서 건드리지 않습니다
+UPDATE products
+SET price = CASE category
+              WHEN '전자기기' THEN price - 5000
+              WHEN '가구'     THEN price - 10000
+            END
+WHERE category IN ('전자기기', '가구');
+
+SELECT category, name, price FROM products
+WHERE category IN ('전자기기', '가구')
+ORDER BY category, price;
 \`\`\`
 
 ## DELETE
@@ -235,6 +339,16 @@ SELECT * FROM memos;
 \`\`\`
 
 이미 행이 있는 테이블에 \`NOT NULL\` 열을 추가하려면 \`DEFAULT\` 가 필요합니다. 기존 행을 채울 값이 있어야 하니까요.
+
+\`DEFAULT\` 없이 추가한 열은 기존 행에서 NULL 입니다. 필요하면 UPDATE 로 채웁니다.
+
+\`\`\`sql
+ALTER TABLE memos ADD COLUMN due_date TEXT;
+
+UPDATE memos SET due_date = '2025-01-31' WHERE id = 1;
+
+SELECT * FROM memos;
+\`\`\`
 
 ## 이름 바꾸기
 
@@ -354,16 +468,57 @@ SELECT * FROM comments;
 
 1번 글의 댓글이 함께 사라졌습니다.
 
+\`SET NULL\` 은 자식을 남겨 두고 연결만 끊습니다. 담당자가 퇴사해도 업무는 남아야 하는 경우입니다.
+
+\`\`\`sql
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS owners;
+
+CREATE TABLE owners (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+CREATE TABLE tasks (
+  id       INTEGER PRIMARY KEY,
+  title    TEXT NOT NULL,
+  owner_id INTEGER REFERENCES owners(id) ON DELETE SET NULL
+);
+
+INSERT INTO owners (name) VALUES ('민지'), ('도윤');
+INSERT INTO tasks (title, owner_id) VALUES ('기획서', 1), ('디자인', 1), ('배포', 2);
+
+DELETE FROM owners WHERE id = 1;
+
+SELECT * FROM tasks;
+\`\`\`
+
+\`SET NULL\` 을 쓰려면 참조 열이 NULL 을 허용해야 합니다(\`NOT NULL\` 이면 안 됩니다).
+
 ## SQLite 에서 주의할 점
 
 SQLite 는 **기본적으로 외래키 제약을 검사하지 않습니다.** 연결마다 \`PRAGMA foreign_keys = ON\` 을 실행해야 합니다.
 이 사이트는 켜 둔 상태이고, 설정 화면에서 끌 수 있습니다. MySQL(InnoDB), PostgreSQL 은 항상 검사합니다.
+
+지금 켜져 있는지는 이렇게 확인합니다. 1 이면 켜짐입니다.
+
+\`\`\`sql
+PRAGMA foreign_keys;
+\`\`\`
 
 ## 관계 종류
 
 - **1:N** 고객 한 명 → 주문 여러 건. FK 는 N 쪽(orders)에 둡니다.
 - **N:M** 학생 여러 명 ↔ 과목 여러 개. 중간 테이블(enrollments)이 양쪽 FK 를 가집니다.
 - **1:1** 드뭅니다. 한쪽 PK 가 다른 쪽 FK 겸 PK.
+
+N:M 은 중간 테이블을 거쳐 양쪽 어느 방향으로든 조회합니다.
+
+\`\`\`sql
+-- "데이터베이스" 과목을 듣는 학생들
+SELECT c.name AS course, s.name AS student, e.semester
+FROM enrollments e
+JOIN courses c  ON c.id = e.course_id
+JOIN students s ON s.id = e.student_id
+WHERE c.name = '데이터베이스'
+ORDER BY e.semester, s.name;
+\`\`\`
 
 관계도 메뉴에서 샘플 테이블의 FK 선을 보면서 위 내용을 대조해 보세요.
 `,
@@ -423,6 +578,29 @@ SELECT * FROM accounts;
 
 실제 애플리케이션 코드에서는 try/catch 로 에러를 잡아 ROLLBACK 을 호출합니다.
 
+## 실무 습관: 실행하고, 확인하고, 결정하기
+
+위험한 변경은 트랜잭션 안에서 실행하고 결과를 눈으로 본 다음에 COMMIT 할지 정합니다. 취소 주문을 지우는 작업을 이렇게 해 봅니다.
+
+\`\`\`sql
+BEGIN;
+
+DELETE FROM order_items
+WHERE order_id IN (SELECT id FROM orders WHERE status = 'cancelled');
+DELETE FROM orders WHERE status = 'cancelled';
+
+-- 의도대로 지워졌는지 확인
+SELECT status, count(*) AS orders FROM orders GROUP BY status;
+\`\`\`
+
+결과가 맞으면 \`COMMIT\`, 아니면 \`ROLLBACK\` 입니다. 여기서는 되돌려 봅니다.
+
+\`\`\`sql
+ROLLBACK;
+
+SELECT status, count(*) AS orders FROM orders GROUP BY status;
+\`\`\`
+
 ## 왜 중요한가
 
 - **원자성**: 절반만 반영되는 일이 없다.
@@ -459,6 +637,18 @@ WHERE total >= 300000
 ORDER BY total DESC;
 \`\`\`
 
+뷰는 테이블처럼 다시 집계하거나 JOIN 할 수 있습니다.
+
+\`\`\`sql
+-- 고객별 주문 수와 총 구매액 (취소 제외)
+SELECT customer, count(*) AS orders, sum(total) AS spent
+FROM order_summary
+WHERE status <> 'cancelled'
+GROUP BY customer
+ORDER BY spent DESC
+LIMIT 5;
+\`\`\`
+
 복잡한 JOIN 을 한 번만 적어 두고 여러 곳에서 재사용할 때, 또는 일부 열만 노출하고 싶을 때 씁니다.
 뷰는 읽기 전용이라고 생각하면 됩니다(SQLite 는 뷰에 INSERT 불가).
 
@@ -466,6 +656,17 @@ ORDER BY total DESC;
 
 책의 찾아보기처럼, 특정 열로 빠르게 찾을 수 있게 하는 자료구조입니다.
 인덱스가 없으면 DB 는 조건에 맞는 행을 찾기 위해 **테이블 전체를 훑습니다**.
+
+먼저 인덱스가 없을 때 DB 가 어떻게 찾는지 봅니다. \`EXPLAIN QUERY PLAN\` 은 쿼리를 실행하지 않고 **어떻게 실행할지**만 보여 줍니다.
+
+\`\`\`sql
+DROP INDEX IF EXISTS idx_orders_customer;
+
+EXPLAIN QUERY PLAN
+SELECT * FROM orders WHERE customer_id = 5;
+\`\`\`
+
+\`SCAN orders\` 는 테이블 전체를 훑는다는 뜻입니다. 이제 인덱스를 만듭니다.
 
 \`\`\`sql
 CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
@@ -487,6 +688,21 @@ SELECT * FROM orders WHERE customer_id = 5;
 샘플 데이터는 작아서 체감이 안 되지만, 실무에서 행이 수백만 개가 되면 이 차이가 수 초 대 수 밀리초입니다.
 
 > MySQL, PostgreSQL 은 \`EXPLAIN\` 만 씁니다. 출력 형식은 다르지만 "인덱스를 탔는가" 를 보는 목적은 같습니다.
+
+## 만든 인덱스와 뷰 확인하고 지우기
+
+\`\`\`sql
+SELECT type, name, tbl_name FROM sqlite_master
+WHERE type IN ('index', 'view')
+ORDER BY type, name;
+\`\`\`
+
+지울 때는 \`DROP INDEX 이름\`, \`DROP VIEW 이름\` 입니다. 인덱스와 뷰는 지워도 테이블의 데이터는 그대로입니다.
+
+\`\`\`sql
+DROP INDEX IF EXISTS idx_products_category;
+DROP VIEW IF EXISTS order_summary;
+\`\`\`
 
 ## 여기까지 왔다면
 

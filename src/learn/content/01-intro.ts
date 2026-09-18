@@ -82,6 +82,25 @@ customers ──< orders ──< order_items >── products
 \`orders.customer_id\` 는 "이 주문을 한 고객의 id" 입니다. 이런 열을 **외래키(FOREIGN KEY, FK)** 라고 합니다.
 관계는 나중에 JOIN 단원에서 본격적으로 다룹니다. 연습장 옆 **관계도** 메뉴에서 그림으로도 볼 수 있습니다.
 
+주문 한 건을 따라가 보면 관계가 보입니다. 1번 주문의 \`customer_id\` 는 11 이고, 고객 테이블에서 \`id\` 가 11 인 행이 그 주문을 한 사람입니다.
+
+\`\`\`sql
+SELECT id, customer_id, ordered_at FROM orders WHERE id = 1;
+
+SELECT id, name, city FROM customers WHERE id = 11;
+\`\`\`
+
+학교 샘플(\`students\`, \`courses\`, \`enrollments\`)과 회사 샘플(\`departments\`, \`employees\`)도 같은 방식으로 이어져 있습니다.
+처음 보는 테이블은 몇 행만 꺼내 어떤 열이 있는지부터 확인하세요. \`LIMIT 5\` 는 앞의 5행만 가져오라는 뜻입니다.
+
+\`\`\`sql
+SELECT * FROM students LIMIT 5;
+\`\`\`
+
+\`\`\`sql
+SELECT * FROM employees LIMIT 5;
+\`\`\`
+
 ## SQL 문장 작성 규칙
 
 - 문장 끝은 \`;\` 로 닫습니다. 한 번에 여러 문장을 실행할 수 있습니다.
