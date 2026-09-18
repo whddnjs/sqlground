@@ -11,7 +11,8 @@ import { PROBLEMS } from '../problems/content'
 import { useEditorStore } from '../store/editor-store'
 import { useLearnStore } from '../store/learn-store'
 import { useProblemStore } from '../store/problem-store'
-import { useUiStore } from '../store/ui-store'
+import { Navigate, useNavigate, useParams } from 'react-router'
+import { routes } from '../routes'
 
 const ALL_LESSONS: Lesson[] = CHAPTERS.flatMap((c) => c.lessons)
 
@@ -34,9 +35,9 @@ const MARKDOWN_COMPONENTS: Components = {
 export function LearnView() {
   const { completed, lastLesson, select, toggleCompleted } = useLearnStore()
   const appendCode = useEditorStore((s) => s.appendCode)
-  const setView = useUiStore((s) => s.setView)
+  const navigate = useNavigate()
+  const { lessonId } = useParams()
   const solved = useProblemStore((s) => s.solved)
-  const selectProblem = useProblemStore((s) => s.select)
   const [query, setQuery] = useState('')
   const [engine, setEngine] = useState<AsyncDbEngine | null>(null)
   const [engineVersion, setEngineVersion] = useState(0)
@@ -50,12 +51,19 @@ export function LearnView() {
     })
   }, [])
 
-  const current = ALL_LESSONS.find((l) => l.id === lastLesson) ?? ALL_LESSONS[0]
-  const index = ALL_LESSONS.indexOf(current)
+  // 주소가 곧 현재 단원이다. 주소에 단원이 없으면 마지막에 보던 단원(없으면 첫 단원)으로 보낸다
+  const current = ALL_LESSONS.find((l) => l.id === lessonId) ?? null
+  const fallback = ALL_LESSONS.find((l) => l.id === lastLesson) ?? ALL_LESSONS[0]
+  useEffect(() => {
+    if (current) select(current.id)
+  }, [current, select])
+  const shown = current ?? fallback
+  const index = ALL_LESSONS.indexOf(shown)
   const prev = ALL_LESSONS[index - 1]
   const next = ALL_LESSONS[index + 1]
-  const done = completed.includes(current.id)
-  const relatedProblems = PROBLEMS.filter((p) => p.lessonId === current.id)
+  const done = completed.includes(shown.id)
+  const relatedProblems = PROBLEMS.filter((p) => p.lessonId === shown.id)
+  const go = (id: string) => navigate(routes.lesson(id))
 
   const q = query.trim().toLowerCase()
   const visibleChapters = useMemo(
@@ -81,7 +89,7 @@ export function LearnView() {
   }
   const openInPlayground = (sql: string) => {
     appendCode(sql)
-    setView('playground')
+    void navigate(routes.playground)
   }
   const reset = async () => {
     const e = await resetLessonEngine()
@@ -89,6 +97,8 @@ export function LearnView() {
     setTables(await e.getTables())
     setEngineVersion((v) => v + 1)
   }
+
+  if (!current) return <Navigate to={routes.lesson(fallback.id)} replace />
 
   return (
     <div className="flex h-full gap-2">
@@ -108,11 +118,11 @@ export function LearnView() {
               <p className="section-label px-2 pt-2 pb-1">{c.title}</p>
               <ul>
                 {c.lessons.map((l) => {
-                  const active = l.id === current.id
+                  const active = l.id === shown.id
                   return (
                     <li key={l.id}>
                       <button
-                        onClick={() => select(l.id)}
+                        onClick={() => go(l.id)}
                         className={[
                           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
                           active ? 'bg-accent-soft font-medium text-accent-fg' : 'text-fg hover:bg-hover',
@@ -146,11 +156,11 @@ export function LearnView() {
               <RotateCcw size={12} /> 예제 DB 초기화
             </button>
           </div>
-          <h1 className="mb-5 text-[26px] font-bold tracking-tight">{current.title}</h1>
+          <h1 className="mb-5 text-[26px] font-bold tracking-tight">{shown.title}</h1>
 
-          <div key={`${current.id}-${engineVersion}`} className="lesson-body">
+          <div key={`${shown.id}-${engineVersion}`} className="lesson-body">
             <LessonDbContext.Provider value={{ tables, run, cancel: () => engine?.cancel(), openInPlayground }}>
-              <Markdown components={MARKDOWN_COMPONENTS}>{current.body}</Markdown>
+              <Markdown components={MARKDOWN_COMPONENTS}>{shown.body}</Markdown>
             </LessonDbContext.Provider>
           </div>
 
@@ -163,10 +173,7 @@ export function LearnView() {
                 {relatedProblems.map((p) => (
                   <li key={p.id}>
                     <button
-                      onClick={() => {
-                        selectProblem(p.id)
-                        setView('problems')
-                      }}
+                      onClick={() => navigate(routes.problem(p.id))}
                       className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-hover"
                     >
                       <span
@@ -187,16 +194,16 @@ export function LearnView() {
           )}
 
           <div className="mt-6 flex items-center gap-2 border-t border-line pt-4">
-            <button disabled={!prev} onClick={() => prev && select(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
+            <button disabled={!prev} onClick={() => prev && go(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               <ChevronLeft size={16} /> {prev?.title ?? '이전'}
             </button>
             <button
-              onClick={() => toggleCompleted(current.id)}
+              onClick={() => toggleCompleted(shown.id)}
               className={['btn mx-auto', done ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'btn-outline'].join(' ')}
             >
               <Check size={14} /> {done ? '완료했어요' : '완료로 표시'}
             </button>
-            <button disabled={!next} onClick={() => next && select(next.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
+            <button disabled={!next} onClick={() => next && go(next.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               {next?.title ?? '다음'} <ChevronRight size={16} />
             </button>
           </div>

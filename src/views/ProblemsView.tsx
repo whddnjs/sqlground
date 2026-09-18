@@ -13,10 +13,10 @@ import { explainSqlError } from '../lib/error-messages'
 import { PROBLEMS } from '../problems/content'
 import { grade, type GradeResult } from '../problems/grade'
 import type { Problem } from '../problems/types'
-import { useLearnStore } from '../store/learn-store'
 import { useProblemStore } from '../store/problem-store'
 import { useSettingsStore } from '../store/settings-store'
-import { useUiStore } from '../store/ui-store'
+import { Navigate, useNavigate, useParams } from 'react-router'
+import { routes } from '../routes'
 
 /** 단원 순서대로 문제를 묶는다. 문제가 없는 단원은 건너뛴다 */
 const GROUPS = CHAPTERS.map((c) => ({
@@ -29,11 +29,18 @@ const DIFFICULTY = { 1: '쉬움', 2: '보통', 3: '어려움' } as const
 
 export function ProblemsView() {
   const { solved, drafts, lastProblem, select, saveDraft, markSolved } = useProblemStore()
-  const selectLesson = useLearnStore((s) => s.select)
-  const setView = useUiStore((s) => s.setView)
+  const navigate = useNavigate()
+  const { problemId } = useParams()
   const fontSize = useSettingsStore((s) => s.fontSize)
 
-  const current = ORDERED.find((p) => p.id === lastProblem) ?? ORDERED[0]
+  // 주소가 곧 현재 문제다. 주소에 문제가 없으면 마지막에 풀던 문제(없으면 첫 문제)로 보낸다
+  const found = ORDERED.find((p) => p.id === problemId) ?? null
+  const fallback = ORDERED.find((p) => p.id === lastProblem) ?? ORDERED[0]
+  const current = found ?? fallback
+  useEffect(() => {
+    if (found) select(found.id)
+  }, [found, select])
+  const go = (id: string) => navigate(routes.problem(id))
   const index = ORDERED.indexOf(current)
   const prev = ORDERED[index - 1]
   const next = ORDERED[index + 1]
@@ -43,12 +50,13 @@ export function ProblemsView() {
   const [running, setRunning] = useState(false)
   // 자동완성용 테이블 목록. DB 가 준비되거나 초기화되거나 실행으로 구조가 바뀔 때 갱신
   const [tables, setTables] = useState<TableInfo[]>([])
-  const [code, setCode] = useState(drafts[current.id] ?? '')
-  const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
-  const [verdict, setVerdict] = useState<GradeResult | null>(null)
-  const [showHint, setShowHint] = useState(false)
-  const [showAnswer, setShowAnswer] = useState(false)
-  const [attempts, setAttempts] = useState(0)
+  // 문제별 화면 상태. 문제가 바뀌면 렌더 중에 바로 새 상태로 바꾼다.
+  // effect 로 초기화하면 그 사이에 들어온 입력이 지워지는 틈이 생긴다
+  const fresh = (id: string) => ({ id, code: drafts[id] ?? '', outcome: null as ExecOutcome | null, verdict: null as GradeResult | null, showHint: false, showAnswer: false, attempts: 0 })
+  const [ui, setUi] = useState(() => fresh(current.id))
+  if (ui.id !== current.id) setUi(fresh(current.id))
+  const { code, outcome, verdict, showHint, showAnswer, attempts } = ui
+  const patch = (p: Partial<typeof ui>) => setUi((prev) => ({ ...prev, ...p }))
 
   const applyEngine = async (e: AsyncDbEngine) => {
     setEngine(e)
@@ -56,19 +64,9 @@ export function ProblemsView() {
   }
   useEffect(() => {
     void getLessonEngine().then(applyEngine)
-  }, [])
-
-  // 문제가 바뀌면 상태 초기화 (draft 는 복원)
-  useEffect(() => {
-    setCode(drafts[current.id] ?? '')
-    setOutcome(null)
-    setVerdict(null)
-    setShowHint(false)
-    setShowAnswer(false)
-    setAttempts(0)
-    // drafts 는 타이핑마다 바뀌므로 의존성에서 뺀다
+    // 처음 한 번만
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current.id])
+  }, [])
 
   const codeRef = useRef(code)
   codeRef.current = code
@@ -97,7 +95,7 @@ export function ProblemsView() {
     setRunning(true)
     try {
       const r = await execute(codeRef.current)
-      if (r) setOutcome(r.shown)
+      if (r) patch({ outcome: r.shown })
       return r
     } finally {
       setRunning(false)
@@ -107,23 +105,23 @@ export function ProblemsView() {
   const submit = async () => {
     const r = await run()
     if (!r || !engine) return
-    setAttempts((n) => n + 1)
+    setUi((prev) => ({ ...prev, attempts: prev.attempts + 1 }))
     const mineOutcome = r.graded
     if (!mineOutcome || mineOutcome.error || mineOutcome.results.length === 0) {
-      setVerdict({ ok: false, message: r.shown.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SQL 문을 작성하세요.' })
+      patch({ verdict: { ok: false, message: r.shown.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SQL 문을 작성하세요.' } })
       return
     }
     setRunning(true)
     const expected = await execute(current.answerSql).finally(() => setRunning(false))
     const expectedOutcome = expected?.graded
     if (!expectedOutcome || expectedOutcome.error || expectedOutcome.results.length === 0) {
-      setVerdict({ ok: false, message: '정답을 계산할 수 없습니다. 예제 DB 를 초기화한 뒤 다시 시도하세요.' })
+      patch({ verdict: { ok: false, message: '정답을 계산할 수 없습니다. 예제 DB 를 초기화한 뒤 다시 시도하세요.' } })
       return
     }
     // 여러 문장을 실행했다면 마지막 조회 결과로 채점
     const lastQuery = (o: ExecOutcome) => [...o.results].reverse().find((x) => x.columns.length > 0) ?? o.results[o.results.length - 1]
     const g = grade(lastQuery(mineOutcome), lastQuery(expectedOutcome), current.orderMatters)
-    setVerdict(g)
+    patch({ verdict: g })
     if (g.ok) markSolved(current.id)
   }
 
@@ -137,11 +135,10 @@ export function ProblemsView() {
     [engine, tables, current.id],
   )
 
-  const goLesson = () => {
-    selectLesson(current.lessonId)
-    setView('learn')
-  }
+  const goLesson = () => navigate(routes.lesson(current.lessonId))
   const lessonTitle = CHAPTERS.flatMap((c) => c.lessons).find((l) => l.id === current.lessonId)?.title ?? ''
+
+  if (!found) return <Navigate to={routes.problem(fallback.id)} replace />
 
   return (
     <div className="flex h-full gap-2">
@@ -158,7 +155,7 @@ export function ProblemsView() {
                     return (
                       <li key={p.id}>
                         <button
-                          onClick={() => select(p.id)}
+                          onClick={() => go(p.id)}
                           className={[
                             'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
                             active ? 'bg-accent-soft font-medium text-accent-fg' : 'text-fg hover:bg-hover',
@@ -240,7 +237,7 @@ export function ProblemsView() {
             <CodeMirror
               value={code}
               onChange={(v) => {
-                setCode(v)
+                patch({ code: v })
                 saveDraft(current.id, v)
               }}
               extensions={extensions}
@@ -263,11 +260,11 @@ export function ProblemsView() {
               <button disabled={running} onClick={() => void submit()} className="btn btn-sm btn-primary">
                 <Send size={12} /> 제출
               </button>
-              <button onClick={() => setShowHint((h) => !h)} className="btn btn-sm btn-ghost ml-auto">
+              <button onClick={() => patch({ showHint: !showHint })} className="btn btn-sm btn-ghost ml-auto">
                 <Lightbulb size={12} /> 힌트
               </button>
               <button
-                onClick={() => setShowAnswer((a) => !a)}
+                onClick={() => patch({ showAnswer: !showAnswer })}
                 disabled={attempts === 0 && !isSolved}
                 title={attempts === 0 && !isSolved ? '한 번 제출한 뒤에 볼 수 있습니다' : undefined}
                 className="btn btn-sm btn-ghost"
@@ -314,10 +311,10 @@ export function ProblemsView() {
           )}
 
           <div className="mt-10 flex items-center gap-2 border-t border-line pt-4">
-            <button disabled={!prev} onClick={() => prev && select(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
+            <button disabled={!prev} onClick={() => prev && go(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               <ChevronLeft size={16} /> {prev?.title ?? '이전'}
             </button>
-            <button disabled={!next} onClick={() => next && select(next.id)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
+            <button disabled={!next} onClick={() => next && go(next.id)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">
               {next?.title ?? '다음'} <ChevronRight size={16} />
             </button>
           </div>

@@ -101,9 +101,9 @@ test.describe('연습장', () => {
     await expect(page.getByRole('button', { name: '중단' })).toBeVisible()
 
     // 쿼리가 워커에서 돌기 때문에 다른 메뉴로 이동할 수 있다
-    await page.getByRole('button', { name: '설정' }).click()
+    await page.getByRole('link', { name: '설정' }).click()
     await expect(page.getByRole('heading', { name: '설정' })).toBeVisible()
-    await page.getByRole('button', { name: '연습장' }).click()
+    await page.getByRole('link', { name: '연습장' }).click()
 
     await page.getByRole('button', { name: '중단' }).click()
     await expect(page.getByText('실행을 중단했습니다.')).toBeVisible()

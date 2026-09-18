@@ -2,7 +2,8 @@ import { ChevronDown, CircleHelp, Play, RotateCcw, Square, Trash2, Upload } from
 import { useEffect, useRef, useState } from 'react'
 import { PRESETS, type Preset } from '../../db/presets'
 import { useDbStore } from '../../store/db-store'
-import { useUiStore } from '../../store/ui-store'
+import { useLocation } from 'react-router'
+import { routes } from '../../routes'
 
 interface Props {
   onRun(): void
@@ -14,7 +15,7 @@ interface Props {
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
 export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props) {
-  const view = useUiStore((s) => s.view)
+  const isPlayground = useLocation().pathname === routes.playground
   const undoCount = useDbStore((s) => s.undoCount)
   const undo = useDbStore((s) => s.undo)
   const running = useDbStore((s) => s.running)
@@ -35,7 +36,7 @@ export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props)
       </button>
 
       <div className="ml-auto flex items-center gap-0.5">
-        {view === 'playground' && (
+        {isPlayground && (
           <>
             <PresetMenu onSelect={onLoadPreset} />
             <button
@@ -57,7 +58,7 @@ export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props)
         <button onClick={onShowShortcuts} title="단축키 안내 (?)" aria-label="단축키 안내" className="btn-icon">
           <CircleHelp size={16} />
         </button>
-        {view === 'playground' &&
+        {isPlayground &&
           (running ? (
             <button onClick={cancel} title="실행을 멈추고 DB 를 실행 직전 상태로 되돌립니다" className="btn btn-danger ml-1.5">
               <Square size={12} fill="currentColor" />

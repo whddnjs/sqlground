@@ -8,7 +8,8 @@ import { confirm } from './store/confirm-store'
 import { useDbStore } from './store/db-store'
 import { useEditorStore } from './store/editor-store'
 import { applyTheme, useSettingsStore } from './store/settings-store'
-import { useUiStore } from './store/ui-store'
+import { Navigate, Route, Routes, useLocation } from 'react-router'
+import { routes } from './routes'
 import { usePresetLoader } from './lib/use-preset-loader'
 import { PlaygroundView } from './views/PlaygroundView'
 
@@ -20,7 +21,7 @@ const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ de
 export default function App() {
   const { status, loadError, init, run, reset } = useDbStore()
   const code = useEditorStore((s) => s.code)
-  const view = useUiStore((s) => s.view)
+  const { pathname } = useLocation()
   const theme = useSettingsStore((s) => s.theme)
 
   useEffect(() => {
@@ -65,14 +66,19 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onRun={() => void run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1 pr-2 pb-2">
-          {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 메뉴로 옮기면 다시 시도한다 */}
-          <ErrorBoundary key={view}>
-          {view === 'playground' && <PlaygroundView />}
-          <Suspense fallback={<Centered>불러오는 중…</Centered>}>
-            {view === 'learn' && <LearnView />}
-            {view === 'problems' && <ProblemsView />}
-            {view === 'settings' && <SettingsView />}
-          </Suspense>
+          {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 주소로 옮기면 다시 시도한다 */}
+          <ErrorBoundary key={pathname}>
+            <Suspense fallback={<Centered>불러오는 중…</Centered>}>
+              <Routes>
+                <Route path={routes.playground} element={<PlaygroundView />} />
+                <Route path={routes.learn} element={<LearnView />} />
+                <Route path={`${routes.learn}/:lessonId`} element={<LearnView />} />
+                <Route path={routes.problems} element={<ProblemsView />} />
+                <Route path={`${routes.problems}/:problemId`} element={<ProblemsView />} />
+                <Route path={routes.settings} element={<SettingsView />} />
+                <Route path="*" element={<Navigate to={routes.playground} replace />} />
+              </Routes>
+            </Suspense>
           </ErrorBoundary>
         </main>
       </div>

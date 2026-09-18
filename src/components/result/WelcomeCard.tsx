@@ -3,14 +3,15 @@ import { PRESETS } from '../../db/presets'
 import { usePresetLoader } from '../../lib/use-preset-loader'
 import { useDbStore } from '../../store/db-store'
 import { useEditorStore } from '../../store/editor-store'
-import { useUiStore } from '../../store/ui-store'
+import { useNavigate } from 'react-router'
+import { routes } from '../../routes'
 
 /** 테이블이 하나도 없을 때 결과 영역에 보여 주는 시작 안내. 테이블이 생기면 자연히 사라진다 */
 export function WelcomeCard() {
   const loadPreset = usePresetLoader()
   const run = useDbStore((s) => s.run)
   const code = useEditorStore((s) => s.code)
-  const setView = useUiStore((s) => s.setView)
+  const navigate = useNavigate()
 
   return (
     <div className="flex h-full items-center justify-center p-4">
@@ -44,7 +45,7 @@ export function WelcomeCard() {
             </span>
           </button>
 
-          <button onClick={() => setView('learn')} className="group flex items-start gap-3 rounded-lg border border-line p-3 text-left hover:bg-hover">
+          <button onClick={() => navigate(routes.learn)} className="group flex items-start gap-3 rounded-lg border border-line p-3 text-left hover:bg-hover">
             <BookOpen size={14} className="mt-0.5 shrink-0 text-accent-fg" />
             <span>
               <span className="block text-[13px] font-medium">처음부터 배우기</span>

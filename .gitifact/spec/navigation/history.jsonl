@@ -1,0 +1,1 @@
+{"id":"H-s47lucrcr3","requirements":["R-deywsidxcj"],"reason":"화면 전환을 상태값으로만 처리해 뒤로 가기가 사이트를 벗어나고 단원·문제 링크를 공유할 수 없었다. react-router 로 화면·단원·문제마다 주소를 둔다"}
