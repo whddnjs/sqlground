@@ -1,8 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2563eb"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
   <g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round">
-    <ellipse cx="32" cy="20" rx="16" ry="6.5"/>
-    <path d="M16 20v24c0 3.6 7.2 6.5 16 6.5s16-2.9 16-6.5V20"/>
-    <path d="M16 32c0 3.6 7.2 6.5 16 6.5s16-2.9 16-6.5"/>
+    <ellipse cx="32" cy="21" rx="15" ry="6"/>
+    <path d="M17 21v22c0 3.3 6.7 6 15 6s15-2.7 15-6V21"/>
+    <path d="M17 32c0 3.3 6.7 6 15 6s15-2.7 15-6"/>
   </g>
 </svg>

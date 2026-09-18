@@ -44,23 +44,23 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children
 
     return (
-      <div className="flex h-full items-center justify-center bg-white p-6 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+      <div className="flex h-full items-center justify-center bg-surface p-6 text-fg">
         <div className="max-w-lg">
           <h1 className="text-lg font-semibold">화면을 표시하다 문제가 생겼습니다</h1>
-          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+          <p className="mt-2 text-sm text-fg-muted">
             작업한 DB 는 브라우저에 저장돼 있어 새로고침하면 대부분 그대로 돌아옵니다. 걱정되면 먼저 DB 파일을 내려받아 두세요.
           </p>
-          <pre className="mt-4 max-h-40 overflow-auto rounded bg-neutral-100 p-3 font-mono text-xs text-red-700 dark:bg-neutral-800 dark:text-red-300">
+          <pre className="mt-4 max-h-40 overflow-auto rounded bg-subtle p-3 font-mono text-xs text-red-700 dark:text-red-300">
             {error.message}
           </pre>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={() => window.location.reload()} className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
+            <button onClick={() => window.location.reload()} className="rounded bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover">
               새로고침
             </button>
-            <button onClick={() => void this.downloadDb()} className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+            <button onClick={() => void this.downloadDb()} className="rounded border border-line-strong px-3 py-1.5 text-sm hover:bg-hover">
               DB 파일 내려받기
             </button>
-            <button onClick={() => this.setState({ error: null, exportError: null })} className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+            <button onClick={() => this.setState({ error: null, exportError: null })} className="rounded border border-line-strong px-3 py-1.5 text-sm hover:bg-hover">
               다시 시도
             </button>
           </div>

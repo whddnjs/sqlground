@@ -17,7 +17,8 @@ export default defineConfig({
   webServer: {
     command: `pnpm build && pnpm preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    // 어제 남아 있던 옛 서버를 재사용해 헛도는 일이 있었다. 항상 새로 빌드해 돌린다
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 })

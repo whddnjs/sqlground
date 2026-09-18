@@ -41,12 +41,12 @@ export function CreateTableDialog({ tables, onClose, onInsert, onRun }: Props) {
       footer={<DialogActions sql={sql} disabled={!valid} onInsert={onInsert} onRun={onRun} />}
     >
       <label className="block text-sm">
-        <span className="mb-1 block text-xs font-medium text-neutral-500">테이블 이름</span>
+        <span className="mb-1 block text-xs font-medium text-fg-muted">테이블 이름</span>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="예: products" className={inputClass} />
       </label>
 
       <table className="mt-4 w-full text-sm">
-        <thead className="text-left text-xs text-neutral-500">
+        <thead className="text-left text-xs text-fg-muted">
           <tr>
             <th className="pb-1 font-medium">컬럼 이름</th>
             <th className="pb-1 font-medium">타입</th>
@@ -118,7 +118,7 @@ export function CreateTableDialog({ tables, onClose, onInsert, onRun }: Props) {
                 <button
                   onClick={() => setColumns((cols) => cols.filter((_, j) => j !== i))}
                   disabled={columns.length === 1}
-                  className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-red-600 disabled:opacity-30 dark:hover:bg-neutral-800"
+                  className="rounded p-1 text-fg-subtle hover:bg-hover hover:text-red-600 disabled:opacity-30"
                   aria-label="컬럼 삭제"
                 >
                   <Trash2 size={14} />
@@ -130,7 +130,7 @@ export function CreateTableDialog({ tables, onClose, onInsert, onRun }: Props) {
       </table>
       <button
         onClick={() => setColumns((cols) => [...cols, emptyColumn()])}
-        className="mt-2 flex items-center gap-1 rounded px-2 py-1 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+        className="mt-2 flex items-center gap-1 rounded px-2 py-1 text-sm text-accent-fg hover:bg-accent-soft"
       >
         <Plus size={14} /> 컬럼 추가
       </button>

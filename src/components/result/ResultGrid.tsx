@@ -1,5 +1,5 @@
-import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import type { QueryResult, SqlValue } from '../../db/engine'
 import type { EditableTarget } from '../../lib/editable-select'
 
@@ -28,11 +28,19 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
   // 선택한 행의 PK 값. 결과가 갱신돼도 PK 기준이라 유지된다
   const [selected, setSelected] = useState<SqlValue[]>([])
   const selectable = !!editable && !!onDeleteRows
+
   const rows = result.rows.slice(0, MAX_ROWS)
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const current = Math.min(page, pageCount - 1)
   const offset = current * PAGE_SIZE
   const visible = rows.slice(offset, offset + PAGE_SIZE)
+
+  // 값이 전부 숫자(또는 NULL)인 열은 오른쪽 정렬해 자릿수를 맞춘다
+  const numeric = useMemo(
+    () => result.columns.map((_, ci) => rows.some((r) => typeof r[ci] === 'number') && rows.every((r) => r[ci] === null || typeof r[ci] === 'number')),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [result],
+  )
 
   const commit = (value: string | null) => {
     if (!editing || !editable || !onUpdateCell) return
@@ -59,7 +67,7 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
         </p>
       )}
       {editable && (
-        <div className="flex items-center gap-2 text-xs text-neutral-500">
+        <div className="flex min-h-6 items-center gap-2 text-[11px] text-fg-subtle">
           <span>셀을 더블클릭하면 값을 고칠 수 있습니다. Enter 로 저장, Esc 로 취소, NULL 버튼으로 비우기.</span>
           {selectable && liveSelected.length > 0 && (
             <button
@@ -67,42 +75,44 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                 onDeleteRows?.(liveSelected)
                 setSelected([])
               }}
-              className="ml-auto flex items-center gap-1 rounded border border-red-300 px-2 py-0.5 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
+              className="btn btn-sm ml-auto border border-red-500/40 text-red-600 hover:bg-red-500/10 dark:text-red-400"
             >
               <Trash2 size={12} /> 선택한 {liveSelected.length}행 삭제
             </button>
           )}
         </div>
       )}
-      <div className="overflow-x-auto rounded border border-neutral-200 dark:border-neutral-700">
-        <table className="min-w-full text-sm">
-          <thead className="bg-neutral-100 dark:bg-neutral-800">
-            <tr>
+
+      <div className="overflow-x-auto rounded-lg border border-line">
+        <table className="w-full border-separate border-spacing-0 text-[13px]">
+          <thead>
+            <tr className="bg-subtle text-left text-xs text-fg-muted">
               {selectable && (
-                <th className="w-7 px-2 py-1">
-                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="이 페이지 모두 선택" />
+                <th className="w-px border-b border-line py-1.5 pr-1 pl-3">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="이 페이지 모두 선택" className="accent-(--color-accent)" />
                 </th>
               )}
-              <th className="px-2 py-1 text-right text-xs text-neutral-400">#</th>
+              <th className="w-px border-b border-line px-3 py-1.5 text-right font-normal text-fg-subtle">#</th>
               {result.columns.map((c, i) => (
-                <th key={i} className="px-3 py-1 text-left font-medium">
+                <th key={i} className={['border-b border-line px-3 py-1.5 font-mono font-medium whitespace-nowrap', numeric[i] ? 'text-right' : ''].join(' ')}>
                   {c}
                 </th>
               ))}
-              {editable && <th className="w-8" />}
+              {editable && <th className="w-px border-b border-line" />}
             </tr>
           </thead>
           <tbody>
             {visible.map((row, vi) => {
               const ri = offset + vi
+              const isSelected = selectable && selected.includes(pkOf(row))
               return (
-                <tr key={ri} className={['border-t border-neutral-100 dark:border-neutral-800', selectable && selected.includes(pkOf(row)) ? 'bg-blue-50 dark:bg-blue-950/30' : ''].join(' ')}>
+                <tr key={ri} className={['group/row', isSelected ? 'bg-accent-soft' : 'hover:bg-hover/60'].join(' ')}>
                   {selectable && (
-                    <td className="px-2 py-1">
-                      <input type="checkbox" checked={selected.includes(pkOf(row))} onChange={() => toggleRow(pkOf(row))} aria-label={`${ri + 1}행 선택`} />
+                    <td className="border-b border-line py-1 pr-1 pl-3">
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleRow(pkOf(row))} aria-label={`${ri + 1}행 선택`} className="accent-(--color-accent)" />
                     </td>
                   )}
-                  <td className="px-2 py-1 text-right text-xs text-neutral-400">{ri + 1}</td>
+                  <td className="border-b border-line px-3 py-1 text-right font-mono text-[11px] text-fg-subtle tabular-nums">{ri + 1}</td>
                   {row.map((v, ci) => {
                     const isEditing = editing?.row === ri && editing.col === ci
                     const canEdit = !!editable && ci !== editable.pkIndex && editable.columnMap.has(ci)
@@ -110,7 +120,11 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                       <td
                         key={ci}
                         onDoubleClick={() => canEdit && setEditing({ row: ri, col: ci, value: v === null ? '' : String(v) })}
-                        className={['px-3 py-1 whitespace-nowrap', canEdit ? 'cursor-text hover:bg-blue-50 dark:hover:bg-blue-950/40' : ''].join(' ')}
+                        className={[
+                          'border-b border-line px-3 py-1 whitespace-nowrap',
+                          numeric[ci] ? 'text-right font-mono text-[12.5px] tabular-nums' : '',
+                          canEdit ? 'cursor-text' : '',
+                        ].join(' ')}
                       >
                         {isEditing ? (
                           <span className="flex items-center gap-1">
@@ -123,7 +137,7 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                                 if (e.key === 'Enter') commit(editing.value)
                                 if (e.key === 'Escape') setEditing(null)
                               }}
-                              className="w-full min-w-24 rounded border border-blue-500 bg-white px-1 py-0 text-sm focus:outline-none dark:bg-neutral-800"
+                              className="input -my-0.5 h-6 min-w-24 px-1.5"
                             />
                             <button
                               title="이 셀을 NULL 로"
@@ -132,7 +146,7 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                                 e.preventDefault()
                                 commit(null)
                               }}
-                              className="shrink-0 rounded border border-neutral-300 px-1 text-[10px] text-neutral-500 hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-700"
+                              className="badge shrink-0 border border-line-strong bg-surface hover:bg-hover"
                             >
                               NULL
                             </button>
@@ -144,11 +158,12 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                     )
                   })}
                   {editable && (
-                    <td className="px-1">
+                    <td className="border-b border-line pr-2">
                       <button
                         title="행 삭제 (DELETE)"
+                        aria-label="행 삭제 (DELETE)"
                         onClick={() => onDeleteRow?.(row[editable.pkIndex])}
-                        className="rounded p-0.5 text-neutral-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                        className="rounded p-1 text-fg-subtle opacity-0 group-hover/row:opacity-100 hover:bg-red-500/10 hover:text-red-600 focus-visible:opacity-100 dark:hover:text-red-400"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -157,20 +172,31 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                 </tr>
               )
             })}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={result.columns.length + 3} className="px-3 py-6 text-center text-xs text-fg-subtle">
+                  결과 행이 없습니다
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
       {pageCount > 1 && (
-        <div className="flex items-center gap-2 text-xs">
-          <button className="rounded border px-2 py-0.5 disabled:opacity-40" disabled={current === 0} onClick={() => setPage(current - 1)}>
-            이전
+        <div className="flex items-center gap-1 text-xs text-fg-muted">
+          <button className="btn-icon" disabled={current === 0} onClick={() => setPage(current - 1)} aria-label="이전 페이지">
+            <ChevronLeft size={15} />
           </button>
-          <span>
+          <span className="tabular-nums">
             {current + 1} / {pageCount}
           </span>
-          <button className="rounded border px-2 py-0.5 disabled:opacity-40" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)}>
-            다음
+          <button className="btn-icon" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)} aria-label="다음 페이지">
+            <ChevronRight size={15} />
           </button>
+          <span className="ml-1 text-fg-subtle">
+            {offset + 1}–{Math.min(offset + PAGE_SIZE, rows.length)} / {rows.length.toLocaleString()}행
+          </span>
         </div>
       )}
     </div>
@@ -178,7 +204,7 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
 }
 
 function Cell({ value }: { value: SqlValue }) {
-  if (value === null) return <span className="text-neutral-400 italic">NULL</span>
-  if (value instanceof Uint8Array) return <span className="text-neutral-400">BLOB ({value.length} bytes)</span>
+  if (value === null) return <span className="rounded bg-subtle px-1 font-mono text-[10.5px] text-fg-subtle">NULL</span>
+  if (value instanceof Uint8Array) return <span className="font-mono text-[11px] text-fg-subtle">BLOB · {value.length} bytes</span>
   return <>{String(value)}</>
 }

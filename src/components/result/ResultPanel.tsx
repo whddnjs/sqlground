@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react'
+import { CornerDownLeft, Download, TerminalSquare } from 'lucide-react'
 import { useState } from 'react'
 import type { ExecOutcome, SqlValue, TableInfo } from '../../db/engine'
 import { downloadCsv } from '../../lib/csv'
@@ -24,10 +24,10 @@ export function ResultPanel({ outcome, notice, history, tables, onRunFromUi, onI
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 gap-1 border-b border-neutral-200 px-2 dark:border-neutral-700">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-line px-2">
         <TabButton active={tab === 'result'} onClick={() => setTab('result')}>결과</TabButton>
         <TabButton active={tab === 'history'} onClick={() => setTab('history')}>
-          히스토리{history.length > 0 && <span className="ml-1 text-neutral-400">{history.length}</span>}
+          히스토리{history.length > 0 && <span className="ml-1.5 font-mono text-[10px] opacity-70">{history.length}</span>}
         </TabButton>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -46,8 +46,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick(): 
     <button
       onClick={onClick}
       className={[
-        'border-b-2 px-3 py-1.5 text-xs font-medium',
-        active ? 'border-blue-600 text-blue-700 dark:text-blue-300' : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200',
+        'flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors',
+        active ? 'bg-accent-soft text-accent-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
       ].join(' ')}
     >
       {children}
@@ -57,32 +57,44 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick(): 
 
 function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome' | 'notice' | 'tables' | 'onRunFromUi'>) {
   if (!outcome && !notice) {
-    return <p className="p-4 text-sm text-neutral-500">쿼리를 실행하면 결과가 여기에 표시됩니다.</p>
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+        <TerminalSquare size={28} strokeWidth={1.4} className="text-fg-subtle" />
+        <p className="text-[13px] text-fg-muted">쿼리를 실행하면 결과가 여기에 표시됩니다</p>
+        <p className="flex items-center gap-1 text-xs text-fg-subtle">
+          <span className="kbd">⌘</span>
+          <span className="kbd">
+            <CornerDownLeft size={10} />
+          </span>
+          <span className="ml-1">또는 Ctrl + Enter</span>
+        </p>
+      </div>
+    )
   }
 
   return (
     <div className="flex flex-col gap-4 p-3">
       {notice && (
-        <section className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-800 dark:bg-emerald-950">
-          <p className="mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/8 px-3 py-2.5 text-sm">
+          <p className="mb-1 text-[11px] font-semibold tracking-wide text-emerald-700 dark:text-emerald-300">
             UI 조작으로 실행한 SQL{notice.rowsAffected > 0 && ` · ${notice.rowsAffected}행 영향`}
           </p>
-          <pre className="overflow-x-auto font-mono text-xs text-emerald-900 dark:text-emerald-100">{notice.sql}</pre>
+          <pre className="overflow-x-auto font-mono text-xs text-fg">{notice.sql}</pre>
         </section>
       )}
       {outcome?.results.map((r, i) => {
         const editable = r.columns.length > 0 ? detectEditableTarget(r, tables) : null
         return (
           <section key={i} className="flex flex-col gap-1">
-            <header className="flex items-baseline gap-2 text-xs text-neutral-500">
-              <code className="max-w-[60%] truncate font-mono text-neutral-700 dark:text-neutral-300">{r.sql}</code>
+            <header className="flex items-center gap-2 text-xs text-fg-muted">
+              <code className="min-w-0 max-w-[60%] truncate rounded bg-subtle px-1.5 py-0.5 font-mono text-[11.5px] text-fg" title={r.sql}>{r.sql}</code>
               <span>{r.columns.length > 0 ? `${r.rows.length.toLocaleString()}행` : `${r.rowsAffected}행 영향`}</span>
               <span>{r.durationMs.toFixed(1)} ms</span>
               {r.columns.length > 0 && (
                 <button
                   onClick={() => downloadCsv(r, `${editable?.table.name ?? 'result'}-${i + 1}.csv`)}
                   title="결과를 CSV 파일로 저장"
-                  className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                  className="btn btn-sm btn-ghost ml-auto"
                 >
                   <Download size={12} /> CSV
                 </button>
@@ -119,22 +131,22 @@ function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome'
 }
 
 function History({ entries, onInsertToEditor }: { entries: HistoryEntry[]; onInsertToEditor(sql: string): void }) {
-  if (entries.length === 0) return <p className="p-4 text-sm text-neutral-500">아직 실행한 쿼리가 없습니다.</p>
+  if (entries.length === 0) return <p className="p-4 text-sm text-fg-muted">아직 실행한 쿼리가 없습니다.</p>
   const label: Record<HistoryEntry['source'], string> = { editor: '에디터', ui: 'UI', preset: '샘플' }
   return (
-    <ul className="divide-y divide-neutral-100 dark:divide-neutral-800">
+    <ul className="divide-y divide-line">
       {entries.map((e) => (
         <li key={e.id} className="flex items-start gap-2 px-3 py-2 text-xs">
-          <span className="mt-0.5 w-10 shrink-0 text-neutral-400">
+          <span className="mt-0.5 w-10 shrink-0 text-fg-subtle">
             {new Date(e.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
           </span>
-          <span className={['mt-0.5 shrink-0 rounded px-1 text-[10px]', e.ok ? 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'].join(' ')}>
+          <span className={['mt-0.5 shrink-0 rounded px-1 text-[10px]', e.ok ? 'bg-subtle text-fg-muted' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'].join(' ')}>
             {label[e.source]}
           </span>
-          <code className="min-w-0 flex-1 truncate font-mono whitespace-pre text-neutral-700 dark:text-neutral-300" title={e.sql}>
+          <code className="min-w-0 flex-1 truncate font-mono whitespace-pre text-fg" title={e.sql}>
             {e.sql}
           </code>
-          <button onClick={() => onInsertToEditor(e.sql)} className="shrink-0 text-blue-600 hover:underline">
+          <button onClick={() => onInsertToEditor(e.sql)} className="shrink-0 text-accent-fg hover:underline">
             에디터에 넣기
           </button>
         </li>
@@ -146,10 +158,10 @@ function History({ entries, onInsertToEditor }: { entries: HistoryEntry[]; onIns
 function ErrorBox({ message, sql }: { message: string; sql: string }) {
   const hint = explainSqlError(message)
   return (
-    <section className="rounded border border-red-300 bg-red-50 p-3 text-sm dark:border-red-800 dark:bg-red-950">
+    <section className="rounded-lg border border-red-500/30 bg-red-500/8 p-3 text-sm">
       <p className="font-mono text-xs text-red-600 dark:text-red-400">{message}</p>
-      {hint && <p className="mt-1.5 text-red-800 dark:text-red-200">{hint}</p>}
-      <pre className="mt-2 overflow-x-auto rounded bg-white/60 p-2 font-mono text-xs text-neutral-700 dark:bg-black/30 dark:text-neutral-300">{sql}</pre>
+      {hint && <p className="mt-1.5 leading-relaxed text-fg">{hint}</p>}
+      <pre className="mt-2 overflow-x-auto rounded-md bg-surface/70 p-2 font-mono text-xs text-fg-muted">{sql}</pre>
     </section>
   )
 }

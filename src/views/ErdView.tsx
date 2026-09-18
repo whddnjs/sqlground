@@ -60,15 +60,15 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
   }
   const zoomBy = (factor: number) => setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z * factor)))
 
-  const actionButton = 'flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800'
+  const actionButton = 'btn btn-sm btn-ghost'
 
   return (
-    <div className="flex h-full flex-col bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
-      <div className="flex items-center gap-3 border-b border-neutral-200 px-4 py-2 text-xs text-neutral-500 dark:border-neutral-700">
-        <span className="font-medium text-neutral-800 dark:text-neutral-100">관계도</span>
+    <div className="flex h-full flex-col bg-surface text-fg">
+      <div className="flex items-center gap-3 border-b border-line px-4 py-2 text-xs text-fg-muted">
+        <span className="font-medium text-fg">관계도</span>
         {selectedTable ? (
           <div className="flex items-center gap-1">
-            <span className="mr-1 rounded bg-blue-100 px-1.5 py-0.5 font-mono text-blue-800 dark:bg-blue-950 dark:text-blue-200">{selectedTable.name}</span>
+            <span className="mr-1 rounded bg-accent-soft px-1.5 py-0.5 font-mono text-accent-fg">{selectedTable.name}</span>
             <button onClick={() => onSelectTable(selectedTable)} className={actionButton} title="조회 (SELECT)"><Eye size={12} /> 조회</button>
             <button onClick={() => onInsertRow(selectedTable)} className={actionButton} title="행 추가 (INSERT)"><Plus size={12} /> 행 추가</button>
             <button onClick={() => onAlterTable(selectedTable)} className={actionButton} title="구조 변경 (ALTER TABLE)"><Settings2 size={12} /> 구조 변경</button>
@@ -78,25 +78,25 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
           <span>테이블을 클릭하면 조회·수정 버튼이 나옵니다. 더블클릭은 구조 변경. 빈 곳을 드래그하면 화면이 움직입니다.</span>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <button onClick={() => zoomBy(1 / 1.2)} title="축소" className="rounded p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <button onClick={() => zoomBy(1 / 1.2)} title="축소" className="rounded p-1 hover:bg-hover">
             <Minus size={14} />
           </button>
           <span className="w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-          <button onClick={() => zoomBy(1.2)} title="확대" className="rounded p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <button onClick={() => zoomBy(1.2)} title="확대" className="rounded p-1 hover:bg-hover">
             <Plus size={14} />
           </button>
-          <button onClick={resetView} className="ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          <button onClick={resetView} className="ml-2 flex items-center gap-1 rounded px-2 py-1 hover:bg-hover">
             <RotateCcw size={12} /> 배치 초기화
           </button>
-          <button onClick={onClose} title="닫기 (Esc)" className="ml-2 rounded p-1 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="관계도 닫기">
+          <button onClick={onClose} title="닫기 (Esc)" className="ml-2 rounded p-1 hover:bg-hover" aria-label="관계도 닫기">
             <X size={16} />
           </button>
         </div>
       </div>
       {tables.length === 0 && (
-        <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">테이블이 없습니다. 테이블을 만들거나 샘플을 불러오면 관계도가 그려집니다.</div>
+        <div className="flex flex-1 items-center justify-center text-sm text-fg-muted">테이블이 없습니다. 테이블을 만들거나 샘플을 불러오면 관계도가 그려집니다.</div>
       )}
-      {tables.length > 0 && <div className="min-h-0 flex-1 overflow-hidden bg-neutral-50 dark:bg-neutral-950">
+      {tables.length > 0 && <div className="dot-grid min-h-0 flex-1 overflow-hidden bg-canvas">
         <svg
           ref={svgRef}
           width="100%"
@@ -141,7 +141,7 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
           </defs>
 
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-            <g className="text-neutral-400 dark:text-neutral-500">
+            <g className="text-fg-subtle">
               {edges.map((e, i) => {
                 const from = boxOf(e.fromTable)
                 const to = boxOf(e.toTable)
@@ -179,9 +179,9 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
                     svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
-                  <rect width={b.width} height={b.height} rx="6" className={selected === b.table ? 'fill-white stroke-blue-500 dark:fill-neutral-900' : 'fill-white stroke-neutral-300 dark:fill-neutral-900 dark:stroke-neutral-600'} strokeWidth={selected === b.table ? 2 : 1} />
-                  <rect width={b.width} height={HEADER_HEIGHT} rx="6" className="fill-blue-600" />
-                  <rect y={HEADER_HEIGHT - 6} width={b.width} height="6" className="fill-blue-600" />
+                  <rect width={b.width} height={b.height} rx="6" className={selected === b.table ? 'fill-surface stroke-accent' : 'fill-surface stroke-line-strong'} strokeWidth={selected === b.table ? 2 : 1} />
+                  <rect width={b.width} height={HEADER_HEIGHT} rx="6" className="fill-accent" />
+                  <rect y={HEADER_HEIGHT - 6} width={b.width} height="6" className="fill-accent" />
                   <text x="10" y={HEADER_HEIGHT / 2 + 4} className="fill-white text-[13px] font-semibold">
                     {t.name}
                   </text>
@@ -192,12 +192,12 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
                     return (
                       <g key={c.name} transform={`translate(0,${y})`}>
                         <title>{desc ? `${c.name}: ${desc}` : c.name}</title>
-                        <text x="10" y={ROW_HEIGHT / 2 + 4} className="fill-neutral-800 font-mono text-[11px] dark:fill-neutral-200">
+                        <text x="10" y={ROW_HEIGHT / 2 + 4} className="fill-fg font-mono text-[11px]">
                           {c.primaryKey && <tspan className="fill-amber-600 font-sans font-semibold">PK </tspan>}
-                          {isFk && !c.primaryKey && <tspan className="fill-blue-600 font-sans font-semibold">FK </tspan>}
+                          {isFk && !c.primaryKey && <tspan className="fill-accent font-sans font-semibold">FK </tspan>}
                           {c.name}
                         </text>
-                        <text x={b.width - 10} y={ROW_HEIGHT / 2 + 4} textAnchor="end" className="fill-neutral-400 font-mono text-[10px]">
+                        <text x={b.width - 10} y={ROW_HEIGHT / 2 + 4} textAnchor="end" className="fill-fg-subtle font-mono text-[10px]">
                           {c.type}
                         </text>
                       </g>

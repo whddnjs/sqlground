@@ -60,11 +60,11 @@ export default function App() {
   if (status === 'error') return <Centered>DB 엔진을 불러오지 못했습니다: {loadError}</Centered>
 
   return (
-    <div className="flex h-full bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100">
+    <div className="flex h-full bg-canvas text-fg">
       <NavRail />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onRun={() => void run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
-        <main className="relative min-h-0 flex-1">
+        <main className="relative min-h-0 flex-1 pr-2 pb-2">
           {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 메뉴로 옮기면 다시 시도한다 */}
           <ErrorBoundary key={view}>
           {view === 'playground' && <PlaygroundView />}
@@ -82,5 +82,5 @@ export default function App() {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-full items-center justify-center text-sm text-neutral-500">{children}</div>
+  return <div className="flex h-full items-center justify-center text-sm text-fg-muted">{children}</div>
 }

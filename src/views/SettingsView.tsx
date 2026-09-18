@@ -36,18 +36,19 @@ export function SettingsView() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <h2 className="mb-6 text-lg font-semibold">설정</h2>
+    <div className="card h-full overflow-y-auto">
+    <div className="mx-auto max-w-2xl px-6 py-8">
+      <h2 className="mb-8 text-[26px] font-bold tracking-tight">설정</h2>
 
       <Section title="화면" description="테마는 이 브라우저에만 저장됩니다.">
-        <div className="flex gap-1 rounded-md border border-neutral-200 p-1 dark:border-neutral-700">
+        <div className="flex gap-1 rounded-lg border border-line bg-subtle p-1">
           {THEMES.map((t) => (
             <button
               key={t.value}
               onClick={() => update({ theme: t.value })}
               className={[
-                'flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm',
-                theme === t.value ? 'bg-blue-600 text-white' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+                'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
+                theme === t.value ? 'bg-surface text-fg shadow-panel' : 'text-fg-muted hover:text-fg',
               ].join(' ')}
             >
               {t.icon}
@@ -59,10 +60,10 @@ export function SettingsView() {
 
       <Section title="에디터" description="SQL 에디터의 글꼴 크기입니다.">
         <div className="flex items-center gap-3">
-          <input type="range" min={11} max={22} value={fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })} className="flex-1" />
+          <input type="range" min={11} max={22} value={fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })} className="flex-1 accent-(--color-accent)" />
           <span className="w-12 text-right text-sm tabular-nums">{fontSize}px</span>
         </div>
-        <pre className="mt-2 rounded bg-neutral-100 p-2 font-mono dark:bg-neutral-800" style={{ fontSize }}>
+        <pre className="mt-2 rounded bg-subtle p-2 font-mono" style={{ fontSize }}>
           SELECT name FROM users WHERE age &gt; 20;
         </pre>
       </Section>
@@ -74,6 +75,7 @@ export function SettingsView() {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="accent-(--color-accent)"
             checked={foreignKeys}
             onChange={(e) => {
               update({ foreignKeys: e.target.checked })
@@ -84,27 +86,28 @@ export function SettingsView() {
         </label>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button onClick={() => void download()} className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+          <button onClick={() => void download()} className="btn btn-outline">
             <Download size={14} /> DB 파일 내보내기 (.sqlite)
           </button>
-          <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-neutral-800">
+          <button onClick={() => fileRef.current?.click()} className="btn btn-outline">
             <Upload size={14} /> DB 파일 가져오기
           </button>
           <input ref={fileRef} type="file" accept=".sqlite,.db,.sqlite3" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
         </div>
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-fg-muted">
           내보낸 파일은 DB Browser for SQLite 같은 다른 도구에서도 열립니다. 컬럼 한글 설명은 파일에 포함되지 않습니다.
         </p>
       </Section>
+    </div>
     </div>
   )
 }
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
-    <section className="mb-8">
-      <h3 className="font-medium">{title}</h3>
-      {description && <p className="mt-0.5 mb-3 text-xs text-neutral-500">{description}</p>}
+    <section className="mb-6 rounded-xl border border-line p-5">
+      <h3 className="text-[15px] font-semibold">{title}</h3>
+      {description && <p className="mt-0.5 mb-3 text-xs text-fg-muted">{description}</p>}
       {children}
     </section>
   )

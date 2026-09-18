@@ -1,30 +1,185 @@
 @import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "@fontsource-variable/jetbrains-mono";
 
 /* 설정에서 고른 테마를 <html class="dark"> 로 적용한다. system 은 JS 가 OS 설정을 보고 클래스를 붙인다 */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * 디자인 토큰. 컴포넌트는 bg-surface, text-fg-muted 같은 의미 기반 클래스만 쓰고,
+ * 라이트/다크 차이는 여기 변수 값으로만 표현한다.
+ *
+ *   canvas  앱 바탕 (레일, 패널 뒤)      surface  패널·카드·에디터
+ *   subtle  표 머리, 코드 조각, 입력 뒤   hover    마우스를 올린 면
+ *   line    구분선                        fg / fg-muted / fg-subtle  글자 3단계
+ *   accent  강조 (버튼, 활성 표시)        accent-soft / accent-fg    옅은 강조 면과 그 위 글자
+ */
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-canvas: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-subtle: #f0f1f4;
+  --color-hover: #eceef2;
+  --color-hover-strong: #e1e4ea;
+  --color-line: #e5e7ec;
+  --color-line-strong: #d2d6de;
+  --color-fg: #16181d;
+  --color-fg-muted: #596070;
+  --color-fg-subtle: #8a90a0;
+  --color-accent: #4f46e5;
+  --color-accent-hover: #4338ca;
+  --color-accent-soft: #eef0ff;
+  --color-accent-fg: #4338ca;
+
+  --shadow-panel: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 8px 24px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
+}
+
+.dark {
+  --color-canvas: #0c0d11;
+  --color-surface: #13151a;
+  --color-subtle: #1a1d24;
+  --color-hover: #20242d;
+  --color-hover-strong: #2a2f3a;
+  --color-line: #23262f;
+  --color-line-strong: #333847;
+  --color-fg: #e7e9ef;
+  --color-fg-muted: #9da4b4;
+  --color-fg-subtle: #697082;
+  --color-accent: #6366f1;
+  --color-accent-hover: #7b7ef5;
+  --color-accent-soft: #1d1f3d;
+  --color-accent-fg: #aab4ff;
+
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+/* SQL 구문 색. 에디터 테마(editor-theme.ts)가 이 변수를 읽는다 */
+:root {
+  --syn-keyword: #6d28d9;
+  --syn-string: #0f766e;
+  --syn-number: #b45309;
+  --syn-comment: #8a90a0;
+  --syn-type: #1d4ed8;
+  --syn-operator: #596070;
+  --syn-selection: #dfe2ff;
+  --syn-active-line: #f6f7fb;
+}
+.dark {
+  --syn-keyword: #c4b5fd;
+  --syn-string: #5eead4;
+  --syn-number: #fbbf24;
+  --syn-comment: #697082;
+  --syn-type: #93c5fd;
+  --syn-operator: #9da4b4;
+  --syn-selection: #2b2f5c;
+  --syn-active-line: #181b22;
+}
 
 html, body, #root {
   height: 100%;
 }
 
+html {
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 html.dark {
   color-scheme: dark;
 }
 
-/* 학습 콘텐츠 (react-markdown 출력) 기본 서식 */
-.lesson-body { line-height: 1.7; font-size: 15px; }
-.lesson-body h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.75rem; }
-.lesson-body h3 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
-.lesson-body p { margin: 0.75rem 0; }
-.lesson-body ul, .lesson-body ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-feature-settings: "ss06", "tnum" 0;
+}
+
+::selection {
+  background: var(--syn-selection);
+}
+
+/* 얇은 스크롤바 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+kbd {
+  font-family: var(--font-mono);
+}
+
+/* 학습·문제 본문 (react-markdown 출력) */
+.lesson-body { line-height: 1.75; font-size: 15px; color: var(--color-fg); }
+.lesson-body h2 { font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; margin: 2.25rem 0 0.75rem; padding-top: 1.25rem; border-top: 1px solid var(--color-line); }
+.lesson-body h3 { font-size: 1.02rem; font-weight: 650; margin: 1.5rem 0 0.5rem; }
+.lesson-body p { margin: 0.8rem 0; }
+.lesson-body ul, .lesson-body ol { margin: 0.8rem 0; padding-left: 1.4rem; }
 .lesson-body ul { list-style: disc; }
 .lesson-body ol { list-style: decimal; }
-.lesson-body li { margin: 0.25rem 0; }
-.lesson-body strong { font-weight: 600; }
-.lesson-body table { border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9em; }
-.lesson-body th, .lesson-body td { border: 1px solid var(--color-neutral-300); padding: 0.3rem 0.6rem; }
-.dark .lesson-body th, .dark .lesson-body td { border-color: var(--color-neutral-700); }
-.lesson-body th { background: var(--color-neutral-100); }
-.dark .lesson-body th { background: var(--color-neutral-800); }
-.lesson-body blockquote { border-left: 3px solid var(--color-amber-400); padding-left: 0.75rem; color: var(--color-neutral-600); margin: 0.75rem 0; }
-.dark .lesson-body blockquote { color: var(--color-neutral-400); }
+.lesson-body li { margin: 0.3rem 0; }
+.lesson-body li::marker { color: var(--color-fg-subtle); }
+.lesson-body strong { font-weight: 650; }
+.lesson-body table { border-collapse: separate; border-spacing: 0; margin: 1rem 0; font-size: 0.9em; border: 1px solid var(--color-line); border-radius: 8px; overflow: hidden; }
+.lesson-body th, .lesson-body td { border-bottom: 1px solid var(--color-line); padding: 0.4rem 0.75rem; text-align: left; }
+.lesson-body tr:last-child td { border-bottom: 0; }
+.lesson-body th { background: var(--color-subtle); font-weight: 600; color: var(--color-fg-muted); }
+.lesson-body blockquote { border-left: 3px solid var(--color-accent); background: var(--color-accent-soft); border-radius: 0 8px 8px 0; padding: 0.5rem 0.9rem; color: var(--color-fg-muted); margin: 1rem 0; }
+.lesson-body blockquote p { margin: 0.2rem 0; }
+
+/* 공통 부품. 컴포넌트마다 긴 클래스 나열을 반복하지 않기 위함 */
+@layer components {
+  .btn {
+    @apply inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors select-none disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-sm { @apply h-7 gap-1 px-2 text-xs; }
+  .btn-primary { @apply bg-accent text-white shadow-sm hover:bg-accent-hover; }
+  .btn-ghost { @apply text-fg-muted hover:bg-hover hover:text-fg; }
+  .btn-outline { @apply border border-line-strong bg-surface text-fg hover:bg-hover; }
+  .btn-danger { @apply bg-red-600 text-white shadow-sm hover:bg-red-700; }
+  .btn-icon { @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-hover hover:text-fg; }
+
+  .input {
+    @apply h-8 w-full rounded-md border border-line-strong bg-surface px-2.5 text-[13px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-50;
+  }
+  .card { @apply rounded-xl border border-line bg-surface shadow-panel; }
+  .badge { @apply inline-flex h-[18px] items-center rounded px-1.5 font-mono text-[10px] font-medium tracking-wide text-fg-muted bg-subtle; }
+  .section-label { @apply text-[11px] font-semibold tracking-wider text-fg-subtle uppercase; }
+  .kbd { @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line-strong bg-surface px-1 font-mono text-[10px] text-fg-muted; }
+}
+
+/* 관계도 바탕의 점 격자 */
+.dot-grid {
+  background-image: radial-gradient(var(--color-line-strong) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* 패널 사이 여백이 곧 크기 조절 핸들. 평소엔 안 보이고 올리거나 끌 때만 선이 나타난다 */
+.resize-handle {
+  position: relative;
+  flex-shrink: 0;
+  outline: none;
+}
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 120ms;
+}
+.resize-handle:hover::after,
+.resize-handle[data-separator="active"]::after,
+.resize-handle:focus-visible::after {
+  background: color-mix(in srgb, var(--color-accent) 55%, transparent);
+}

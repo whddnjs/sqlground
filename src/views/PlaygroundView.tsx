@@ -58,7 +58,7 @@ export function PlaygroundView() {
   return (
     <>
       <Group orientation="horizontal" className="h-full">
-        <Panel defaultSize="22%" minSize="12%" className="overflow-y-auto border-r border-neutral-200 dark:border-neutral-700">
+        <Panel defaultSize="23%" minSize="14%" className="card overflow-hidden">
           <SchemaBrowser
             tables={tables}
             onCreateTable={() => setDialog({ type: 'create' })}
@@ -69,18 +69,18 @@ export function PlaygroundView() {
             onShowErd={() => setShowErd(true)}
           />
         </Panel>
-        <Separator className="w-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
+        <Separator className="resize-handle w-2" />
         <Panel>
           <Group orientation="vertical">
-            <Panel defaultSize="45%" minSize="20%" className="flex flex-col overflow-hidden">
+            <Panel defaultSize="45%" minSize="20%" className="card flex flex-col overflow-hidden">
               <EditorTabs />
               {/* key 로 탭마다 에디터를 새로 만들어 실행 취소 기록이 섞이지 않게 한다 */}
               <div className="min-h-0 flex-1">
                 <SqlEditor key={activeId} value={code} onChange={setCode} onRun={handleRun} tables={tables} fontSize={fontSize} />
               </div>
             </Panel>
-            <Separator className="h-1 bg-neutral-100 hover:bg-blue-300 dark:bg-neutral-800" />
-            <Panel className="overflow-hidden">
+            <Separator className="resize-handle h-2" />
+            <Panel className="card overflow-hidden">
               <ResultPanel
                 outcome={outcome}
                 notice={notice}
@@ -95,8 +95,8 @@ export function PlaygroundView() {
       </Group>
 
       {showErd && (
-        <div className="absolute inset-0 z-20 bg-white dark:bg-neutral-900">
-          <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-neutral-500">불러오는 중…</div>}>
+        <div className="card absolute inset-0 right-2 bottom-2 z-20 overflow-hidden">
+          <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-fg-muted">불러오는 중…</div>}>
           <ErdView
             onClose={() => setShowErd(false)}
             onSelectTable={selectTable}

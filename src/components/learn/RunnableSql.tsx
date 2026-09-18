@@ -7,7 +7,7 @@ import type { ExecOutcome } from '../../db/engine'
 import { useLessonDb } from '../../learn/lesson-db-context'
 import { sqlExtensions } from '../../lib/editor-schema'
 import { explainSqlError } from '../../lib/error-messages'
-import { useEffectiveTheme, useSettingsStore } from '../../store/settings-store'
+import { useSettingsStore } from '../../store/settings-store'
 import { ResultGrid } from '../result/ResultGrid'
 
 interface Props {
@@ -20,7 +20,6 @@ export function RunnableSql({ initialSql }: Props) {
   const [running, setRunning] = useState(false)
   const [code, setCode] = useState(initialSql)
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
-  const theme = useEffectiveTheme()
   const fontSize = useSettingsStore((s) => s.fontSize)
 
   // 단축키 핸들러가 항상 최신 code 를 보도록 ref 로 둔다 (extensions 를 매번 새로 만들지 않기 위해)
@@ -46,40 +45,40 @@ export function RunnableSql({ initialSql }: Props) {
   )
 
   return (
-    <div className="my-4 overflow-hidden rounded-md border border-neutral-200 dark:border-neutral-700">
+    <div className="my-5 overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
       <CodeMirror
         value={code}
         onChange={setCode}
         extensions={extensions}
-        theme={theme}
+        theme="none"
         basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
         style={{ fontSize }}
       />
-      <div className="flex items-center gap-1 border-t border-neutral-200 bg-neutral-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-800/60">
+      <div className="flex items-center gap-1 border-t border-line bg-subtle/60 px-2 py-1.5">
         {running ? (
-          <button onClick={cancel} className="flex items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700">
+          <button onClick={cancel} className="btn btn-sm btn-danger">
             <Square size={11} /> 중단
           </button>
         ) : (
-          <button onClick={run} className="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white hover:bg-blue-700">
+          <button onClick={run} className="btn btn-sm btn-primary">
             <Play size={12} /> 실행
           </button>
         )}
         {code !== initialSql && (
-          <button onClick={() => setCode(initialSql)} title="예제 원래대로" className="flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">
+          <button onClick={() => setCode(initialSql)} title="예제 원래대로" className="btn btn-sm btn-ghost">
             <RotateCcw size={12} /> 원래대로
           </button>
         )}
-        <button onClick={() => onOpenInPlayground(code)} className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700">
+        <button onClick={() => onOpenInPlayground(code)} className="btn btn-sm btn-ghost ml-auto">
           <ExternalLink size={12} /> 연습장에서 열기
         </button>
       </div>
       {outcome && (
-        <div className="flex flex-col gap-3 border-t border-neutral-200 p-3 text-sm dark:border-neutral-700">
+        <div className="flex flex-col gap-3 border-t border-line p-3 text-sm">
           {outcome.results.map((r, i) => (
             <div key={i} className="flex flex-col gap-1">
-              {outcome.results.length > 1 && <code className="truncate font-mono text-xs text-neutral-500">{r.sql}</code>}
-              {r.columns.length > 0 ? <ResultGrid result={r} /> : <p className="text-xs text-neutral-500">실행 완료 · {r.rowsAffected}행 영향</p>}
+              {outcome.results.length > 1 && <code className="truncate font-mono text-xs text-fg-muted">{r.sql}</code>}
+              {r.columns.length > 0 ? <ResultGrid result={r} /> : <p className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>}
             </div>
           ))}
           {outcome.error && (
