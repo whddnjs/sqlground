@@ -140,6 +140,8 @@ test.describe('연습장', () => {
   test('실행 이력은 새로고침해도 남는다', async ({ page }) => {
     await openApp(page)
     await runInPlayground(page, 'SELECT 42 AS answer;')
+    // 실행이 끝나 이력이 기록된 뒤에 새로고침한다
+    await expect(page.getByRole('cell', { name: '42', exact: true })).toBeVisible()
     await page.reload()
     await page.getByRole('button', { name: /히스토리/ }).click()
     // 에디터에도 같은 문장이 남아 있으므로 히스토리 항목(code)으로 좁힌다
