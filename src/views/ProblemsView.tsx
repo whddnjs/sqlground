@@ -1,16 +1,21 @@
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { BookOpen, Check, ChevronLeft, ChevronRight, Eye, Lightbulb, Play, RotateCcw, Send, Square } from 'lucide-react'
+import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Eye, GraduationCap, Lightbulb, Play, RotateCcw, Send, Square, Target, TerminalSquare } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
+import { ExpectedResult } from '../components/problems/ExpectedResult'
+import { ProblemContext } from '../components/problems/ProblemContext'
+import { SectionPanel } from '../components/problems/SectionPanel'
+import { SolutionPanel } from '../components/problems/SolutionPanel'
 import { ResultGrid } from '../components/result/ResultGrid'
-import type { AsyncDbEngine, ExecOutcome, TableInfo } from '../db/engine'
+import type { AsyncDbEngine, ExecOutcome, QueryResult, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
 import { sqlExtensions } from '../lib/editor-schema'
 import { explainSqlError } from '../lib/error-messages'
 import { PROBLEMS } from '../problems/content'
+import { expectedMeta, lastQueryResult, loadTablePreviews, relatedTables, type TablePreview } from '../problems/context'
 import { grade, type GradeResult } from '../problems/grade'
 import type { Problem } from '../problems/types'
 import { useProblemStore } from '../store/problem-store'
@@ -52,15 +57,22 @@ export function ProblemsView() {
   const [tables, setTables] = useState<TableInfo[]>([])
   // 문제별 화면 상태. 문제가 바뀌면 렌더 중에 바로 새 상태로 바꾼다.
   // effect 로 초기화하면 그 사이에 들어온 입력이 지워지는 틈이 생긴다
-  const fresh = (id: string) => ({ id, code: drafts[id] ?? '', outcome: null as ExecOutcome | null, verdict: null as GradeResult | null, showHint: false, showAnswer: false })
+  const fresh = (id: string) => ({ id, code: drafts[id] ?? '', outcome: null as ExecOutcome | null, verdict: null as GradeResult | null, showHint: false, showExpected: false, showAnswer: false })
   const [ui, setUi] = useState(() => fresh(current.id))
   if (ui.id !== current.id) setUi(fresh(current.id))
-  const { code, outcome, verdict, showHint, showAnswer } = ui
+  const { code, outcome, verdict, showHint, showExpected, showAnswer } = ui
   const patch = (p: Partial<typeof ui>) => setUi((prev) => ({ ...prev, ...p }))
+
+  // 관련 테이블 미리보기와 기대 결과. id 가 현재 문제와 같을 때만 유효하다
+  const [context, setContext] = useState<{ id: string; tables: TablePreview[]; expected: QueryResult | null } | null>(null)
+  // DB 가 되돌려지거나 사용자가 데이터를 바꾸면 올려서 맥락을 다시 불러온다
+  const [dataVersion, setDataVersion] = useState(0)
+  const contextReady = context?.id === current.id
 
   const applyEngine = async (e: AsyncDbEngine) => {
     setEngine(e)
     setTables(await e.getTables())
+    setDataVersion((v) => v + 1)
   }
   useEffect(() => {
     void getLessonEngine().then(applyEngine)
@@ -79,8 +91,9 @@ export function ProblemsView() {
     if (!engine) return null
     const options = { timeoutMs: LESSON_TIMEOUT_MS }
     if (!current.checkSql) {
-      const { outcome: o, tables: next } = await engine.exec(sqlText, options)
+      const { outcome: o, tables: next, changed } = await engine.exec(sqlText, options)
       setTables(next)
+      if (changed) setDataVersion((v) => v + 1)
       return { shown: o, graded: o.error ? null : o }
     }
     const snapshot = await engine.export()
@@ -91,11 +104,34 @@ export function ProblemsView() {
     return { shown: o.error || !check ? o : check, graded: check }
   }
 
+  // 문제를 열면 관련 테이블과 기대 결과를 불러온다. 변경 문제의 기대 결과는 격리 실행이라
+  // 그동안 사용자의 실행과 섞이지 않도록 준비될 때까지 실행·제출을 막는다 (contextReady)
+  useEffect(() => {
+    if (!engine) return
+    let cancelled = false
+    void (async () => {
+      const all = await engine.getTables()
+      const previews = await loadTablePreviews(engine, relatedTables(current, all))
+      const answer = await execute(current.answerSql)
+      if (cancelled) return
+      setContext({ id: current.id, tables: previews, expected: answer?.graded ? lastQueryResult(answer.graded.results) : null })
+    })()
+    return () => {
+      cancelled = true
+    }
+    // execute 는 engine 과 current 만 읽는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, current.id, dataVersion])
+
+  // 실행할 때마다 올려 결과 패널이 화면 안으로 들어오게 한다
+  const [runCount, setRunCount] = useState(0)
+
   const run = async () => {
     setRunning(true)
     try {
       const r = await execute(codeRef.current)
       if (r) patch({ outcome: r.shown })
+      setRunCount((n) => n + 1)
       return r
     } finally {
       setRunning(false)
@@ -118,8 +154,7 @@ export function ProblemsView() {
       return
     }
     // 여러 문장을 실행했다면 마지막 조회 결과로 채점
-    const lastQuery = (o: ExecOutcome) => [...o.results].reverse().find((x) => x.columns.length > 0) ?? o.results[o.results.length - 1]
-    const g = grade(lastQuery(mineOutcome), lastQuery(expectedOutcome), current.orderMatters)
+    const g = grade(lastQueryResult(mineOutcome.results)!, lastQueryResult(expectedOutcome.results)!, current.orderMatters)
     patch({ verdict: g })
     if (g.ok) markSolved(current.id)
   }
@@ -218,6 +253,8 @@ export function ProblemsView() {
               {current.description}
             </Markdown>
           </div>
+          <ProblemContext tables={contextReady ? context.tables : []} loading={!contextReady} />
+
           {current.checkSql ? (
             <div className="mb-4 rounded border border-line bg-canvas p-3 text-xs text-fg-muted">
               <p>
@@ -252,61 +289,89 @@ export function ProblemsView() {
                   <Square size={11} /> 중단
                 </button>
               ) : (
-                <button onClick={() => void run()} className="btn btn-sm btn-outline" title="Cmd/Ctrl + Enter">
+                <button disabled={!contextReady} onClick={() => void run()} className="btn btn-sm btn-outline" title="Cmd/Ctrl + Enter">
                   <Play size={12} /> 실행
                 </button>
               )}
-              <button disabled={running} onClick={() => void submit()} className="btn btn-sm btn-primary">
+              <button disabled={running || !contextReady} onClick={() => void submit()} className="btn btn-sm btn-primary">
                 <Send size={12} /> 제출
               </button>
-              <button onClick={() => patch({ showHint: !showHint })} className="btn btn-sm btn-ghost ml-auto">
+              <button onClick={() => patch({ showHint: !showHint })} aria-pressed={showHint} className={['btn btn-sm ml-auto', showHint ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'btn-ghost'].join(' ')}>
                 <Lightbulb size={12} /> 힌트
               </button>
               <button
+                onClick={() => patch({ showExpected: !showExpected })}
+                disabled={!contextReady}
+                aria-pressed={showExpected}
+                title="정답 쿼리를 실행하면 나오는 결과를 보여 줍니다. 쿼리는 보여 주지 않습니다"
+                className={['btn btn-sm', showExpected ? 'bg-accent-soft text-accent-fg' : 'btn-ghost'].join(' ')}
+              >
+                <Target size={12} /> 기대 결과
+              </button>
+              <button
                 onClick={() => patch({ showAnswer: !showAnswer })}
+                aria-pressed={showAnswer}
                 title="정답 쿼리를 보여 줍니다. 보고 나서도 제출과 해결 표시는 똑같이 됩니다"
-                className="btn btn-sm btn-ghost"
+                className={['btn btn-sm', showAnswer ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300' : 'btn-ghost'].join(' ')}
               >
                 <Eye size={12} /> 정답 보기
               </button>
             </div>
           </div>
 
-          {showHint && (
-            <p className="mt-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-              힌트: {current.hint}
-            </p>
-          )}
-          {showAnswer && (
-            <pre className="mt-3 overflow-x-auto rounded border border-line bg-canvas p-3 font-mono text-xs">{current.answerSql}</pre>
-          )}
-          {verdict && (
-            <p
-              className={[
-                'mt-3 rounded border p-3 text-sm font-medium',
-                verdict.ok
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
-                  : 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
-              ].join(' ')}
-            >
-              {verdict.message}
-            </p>
-          )}
+          {/*
+            에디터 아래 영역. 도움(힌트 → 기대 결과 → 모범 답안)은 그것을 연 버튼 바로 아래에,
+            내 실행 결과는 맨 아래 별도 패널에 둔다. 종류마다 색 띠와 아이콘이 달라 한눈에 구분된다
+          */}
+          <div className="mt-3 flex flex-col gap-3">
+            {showHint && (
+              <SectionPanel tone="amber" icon={<Lightbulb size={14} />} title="힌트" onClose={() => patch({ showHint: false })}>
+                <p className="text-[13px] leading-relaxed">{current.hint}</p>
+              </SectionPanel>
+            )}
 
-          {outcome && (
-            <div className="mt-4 flex flex-col gap-3 text-sm">
-              {current.checkSql && !outcome.error && <p className="text-xs text-fg-muted">내 SQL 실행 후 확인 쿼리 결과</p>}
-              {outcome.results.map((r, i) =>
-                r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>,
-              )}
-              {outcome.error && (
-                <div className="rounded border border-red-300 bg-red-50 p-2 text-xs dark:border-red-800 dark:bg-red-950">
-                  <p className="font-mono text-red-600 dark:text-red-400">{outcome.error.message}</p>
-                  {explainSqlError(outcome.error.message) && <p className="mt-1 text-red-800 dark:text-red-200">{explainSqlError(outcome.error.message)}</p>}
+            {showExpected && contextReady && (
+              <SectionPanel tone="accent" icon={<Target size={14} />} title="기대 결과" meta={expectedMeta(current, context.expected)} onClose={() => patch({ showExpected: false })}>
+                <ExpectedResult problem={current} expected={context.expected} />
+              </SectionPanel>
+            )}
+
+            {(showAnswer || verdict?.ok) && (
+              <SectionPanel
+                tone="violet"
+                icon={<GraduationCap size={14} />}
+                title={current.alternatives?.length ? '모범 답안과 다른 풀이' : '모범 답안'}
+                onClose={showAnswer ? () => patch({ showAnswer: false }) : undefined}
+              >
+                <SolutionPanel problem={current} />
+              </SectionPanel>
+            )}
+
+            {outcome && (
+              <SectionPanel
+                tone={verdict ? (verdict.ok ? 'emerald' : 'red') : outcome.error ? 'red' : 'neutral'}
+                icon={verdict ? verdict.ok ? <CircleCheck size={14} /> : <CircleX size={14} /> : <TerminalSquare size={14} />}
+                title={verdict ? (verdict.ok ? '내 실행 결과 · 정답' : '내 실행 결과 · 오답') : '내 실행 결과'}
+                meta={current.checkSql && !outcome.error ? '내 SQL 실행 후 확인 쿼리로 본 결과' : undefined}
+                scrollKey={runCount}
+              >
+                <div className="flex flex-col gap-3 text-sm">
+                  {verdict && (
+                    <p className={['text-[13px] font-medium', verdict.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'].join(' ')}>{verdict.message}</p>
+                  )}
+                  {outcome.results.map((r, i) =>
+                    r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>,
+                  )}
+                  {outcome.error && (
+                    <div className="rounded-md border border-red-500/30 bg-red-500/8 p-2 text-xs">
+                      <p className="font-mono text-red-600 dark:text-red-400">{outcome.error.message}</p>
+                      {explainSqlError(outcome.error.message) && <p className="mt-1 text-fg">{explainSqlError(outcome.error.message)}</p>}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+              </SectionPanel>
+            )}
+          </div>
 
           <div className="mt-10 flex items-center gap-2 border-t border-line pt-4">
             <button disabled={!prev} onClick={() => prev && go(prev.id)} className="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-hover disabled:opacity-30">

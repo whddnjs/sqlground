@@ -56,16 +56,16 @@ test.describe('학습', () => {
     await openApp(page)
     await page.getByRole('link', { name: '학습' }).click()
     await page.getByRole('button', { name: 'WHERE 로 조건 걸기' }).click()
-    await page.getByRole('button', { name: /5만원 이상 전자기기/ }).click()
-    await expect(page.getByRole('heading', { name: /5만원 이상 전자기기/ })).toBeVisible()
+    await page.getByRole('button', { name: /서울 또는 부산 고객/ }).click()
+    await expect(page.getByRole('heading', { level: 1, name: /서울 또는 부산 고객/ })).toBeVisible()
   })
 })
 
 test.describe('문제풀이', () => {
   test('조회 문제: 오답은 이유를 알려 주고 정답은 해결로 표시된다', async ({ page }) => {
-    await openApp(page)
-    await page.getByRole('link', { name: '문제풀이' }).click()
-    await expect(page.getByRole('heading', { name: '상품 이름과 가격' })).toBeVisible()
+    await page.goto('/problems/p-select-1')
+    await expect(page.getByRole('heading', { level: 1, name: '상품 이름과 가격' })).toBeVisible()
+    await expect(page.getByText('이 문제에서 쓰는 테이블')).toBeVisible()
 
     await setEditor(page, 'SELECT name FROM products')
     await page.getByRole('button', { name: '제출' }).click()
@@ -80,10 +80,43 @@ test.describe('문제풀이', () => {
   test('정답 보기는 제출 전에도 열리고, 본 뒤에도 제출과 해결 표시는 그대로 된다', async ({ page }) => {
     await page.goto('/problems/p-select-2')
     await page.getByRole('button', { name: '정답 보기' }).click()
-    await expect(page.getByText('SELECT DISTINCT category FROM products')).toBeVisible()
+    await expect(page.getByText('SELECT DISTINCT category FROM products', { exact: true })).toBeVisible()
     await setEditor(page, 'SELECT DISTINCT category FROM products')
     await page.getByRole('button', { name: '제출' }).click()
     await expect(page.getByText('정답입니다!')).toBeVisible()
+  })
+
+  test('문제를 열면 관련 테이블이 보이고, 기대 결과는 버튼을 눌러야 나온다', async ({ page }) => {
+    await page.goto('/problems/p-case-2')
+    // 관련 테이블: 컬럼 한글 설명과 데이터 앞 몇 행은 항상 보인다
+    await expect(page.getByText('이 문제에서 쓰는 테이블')).toBeVisible()
+    await expect(page.getByText('성적 점수 (0~100). 아직 없으면 NULL')).toBeVisible()
+    const expectedPanel = page.getByRole('region', { name: '기대 결과' })
+    await expect(expectedPanel).toHaveCount(0)
+
+    // 기대 결과: 힌트와 정답 보기 사이의 버튼. 결과 표만 나오고 쿼리는 숨겨져 있다
+    const toggle = page.getByRole('button', { name: '기대 결과', exact: true })
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await expect(expectedPanel.getByRole('cell', { name: 'A', exact: true })).toBeVisible()
+    await expect(page.getByText(/CASE WHEN score >= 90/)).toHaveCount(0)
+
+    // 패널의 닫기 버튼으로도 접힌다
+    await expectedPanel.getByRole('button', { name: '기대 결과 닫기' }).click()
+    await expect(expectedPanel).toHaveCount(0)
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('정답을 맞히면 모범 답안과 다른 풀이가 나온다', async ({ page }) => {
+    await page.goto('/problems/p-where-2')
+    await expect(page.getByText('이 문제에서 쓰는 테이블')).toBeVisible()
+    await setEditor(page, "SELECT name, city FROM customers WHERE city = '서울' OR city = '부산'")
+    await page.getByRole('button', { name: '제출' }).click()
+    // 판정은 "내 실행 결과" 패널에, 풀이는 별도 패널에 나온다
+    await expect(page.getByRole('region', { name: '내 실행 결과 · 정답' }).getByText('정답입니다!')).toBeVisible()
+    const solution = page.getByRole('region', { name: '모범 답안과 다른 풀이' })
+    await expect(solution.getByText("WHERE city IN ('서울', '부산')")).toBeVisible()
+    await expect(solution.getByText("city = '서울' OR city = '부산'")).toBeVisible()
   })
 
   test('변경 문제: 채점 후 DB 가 원래대로 돌아간다', async ({ page }) => {
