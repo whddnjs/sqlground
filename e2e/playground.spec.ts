@@ -142,6 +142,7 @@ test.describe('연습장', () => {
     await runInPlayground(page, 'SELECT 42 AS answer;')
     await page.reload()
     await page.getByRole('button', { name: /히스토리/ }).click()
-    await expect(page.getByText('SELECT 42 AS answer;')).toBeVisible()
+    // 에디터에도 같은 문장이 남아 있으므로 히스토리 항목(code)으로 좁힌다
+    await expect(page.locator('li code', { hasText: 'SELECT 42 AS answer;' })).toBeVisible()
   })
 })
