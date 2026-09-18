@@ -298,6 +298,18 @@ src/
 - 복구 지점: 연습장은 `run()` 이 실행 직전에 먼저 보내는 스냅샷, 학습·문제풀이는 샘플 로드 직후 `checkpoint()`
 - 주의: sql.js 의 `export()` 는 연결을 다시 열어 PRAGMA 와 열린 트랜잭션을 없앤다. export 를 부르는 모든 경로(스냅샷, 자동 저장)가 이 점을 고려해야 한다
 
+## 9-1. 디자인 시스템 (2026-09-18)
+
+방향: "정돈된 개발 도구" (Linear, Supabase 대시보드 느낌). 강조색 인디고·바이올렛.
+
+- 토큰: `src/index.css` 의 `@theme` 에 의미 기반 색을 정의하고 `.dark` 에서 값만 바꾼다. 컴포넌트는 `bg-surface`, `text-fg-muted`, `border-line`, `bg-accent` 같은 토큰 클래스만 쓰고 `dark:` 는 상태색(emerald/red/amber)에만 남긴다
+  - canvas(앱 바탕) / surface(카드·패널) / subtle(표 머리, 입력 뒤) / hover / line / fg 3단계 / accent, accent-soft, accent-fg
+- 글꼴: Pretendard Variable(본문), JetBrains Mono Variable(코드·그리드 숫자). npm 패키지로 자체 호스팅
+- 공통 부품: `.btn .btn-primary/.btn-ghost/.btn-outline/.btn-danger/.btn-sm`, `.btn-icon`, `.input`, `.card`, `.badge`, `.section-label`, `.kbd` (index.css @layer components)
+- 레이아웃: 바탕(canvas) 위에 패널이 카드(surface)로 뜬다. 패널 사이 여백이 크기 조절 핸들(`.resize-handle`)
+- 에디터: `src/components/editor/editor-theme.ts` 가 CSS 변수(`--syn-*`)로 구문 색을 정의. 세 에디터(연습장, 학습 예제, 문제풀이)가 `sqlExtensions()` 로 같은 테마를 쓴다. @uiw 기본 테마는 `theme="none"` 으로 끈다
+- 새 화면을 만들 때: 원시 색 클래스(neutral-*, blue-*)를 쓰지 말고 토큰과 공통 부품을 쓴다. 로고는 `components/layout/Logo.tsx`, 파비콘·OG 이미지와 같은 모양
+
 ## 10. 다음 후보
 
 - PostgreSQL(PGlite) 엔진, URL 공유, Supabase 로그인

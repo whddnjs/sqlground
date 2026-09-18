@@ -179,7 +179,7 @@ export function ErdView({ onClose, onSelectTable, onInsertRow, onAlterTable, onD
                     svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
-                  <rect width={b.width} height={b.height} rx="6" className={selected === b.table ? 'fill-white stroke-accent' : 'fill-white stroke-line-strong'} strokeWidth={selected === b.table ? 2 : 1} />
+                  <rect width={b.width} height={b.height} rx="6" className={selected === b.table ? 'fill-surface stroke-accent' : 'fill-surface stroke-line-strong'} strokeWidth={selected === b.table ? 2 : 1} />
                   <rect width={b.width} height={HEADER_HEIGHT} rx="6" className="fill-accent" />
                   <rect y={HEADER_HEIGHT - 6} width={b.width} height="6" className="fill-accent" />
                   <text x="10" y={HEADER_HEIGHT / 2 + 4} className="fill-white text-[13px] font-semibold">
