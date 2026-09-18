@@ -77,6 +77,15 @@ test.describe('문제풀이', () => {
     await expect(page.getByText(/^1 \/ \d+ 해결$/)).toBeVisible()
   })
 
+  test('정답 보기는 제출 전에도 열리고, 본 뒤에도 제출과 해결 표시는 그대로 된다', async ({ page }) => {
+    await page.goto('/problems/p-select-2')
+    await page.getByRole('button', { name: '정답 보기' }).click()
+    await expect(page.getByText('SELECT DISTINCT category FROM products')).toBeVisible()
+    await setEditor(page, 'SELECT DISTINCT category FROM products')
+    await page.getByRole('button', { name: '제출' }).click()
+    await expect(page.getByText('정답입니다!')).toBeVisible()
+  })
+
   test('변경 문제: 채점 후 DB 가 원래대로 돌아간다', async ({ page }) => {
     await openApp(page)
     await page.getByRole('link', { name: '문제풀이' }).click()

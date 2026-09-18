@@ -11,7 +11,7 @@ const THEMES: Array<{ value: Theme; label: string; icon: React.ReactNode }> = [
 ]
 
 export function SettingsView() {
-  const { theme, fontSize, foreignKeys, update } = useSettingsStore()
+  const { theme, fontSize, foreignKeys, ligatures, update } = useSettingsStore()
   const { exportDb, importDb, setForeignKeys, tables } = useDbStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -77,8 +77,17 @@ export function SettingsView() {
           <span className="w-12 text-right text-sm tabular-nums">{fontSize}px</span>
         </div>
         <pre className="mt-2 rounded bg-subtle p-2 font-mono" style={{ fontSize }}>
-          SELECT name FROM users WHERE age &gt; 20;
+          SELECT name FROM users WHERE age &gt;= 20 AND city &lt;&gt; 'x';
         </pre>
+        <label className="mt-4 flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-0.5 accent-(--color-accent)" checked={ligatures} onChange={(e) => update({ ligatures: e.target.checked })} />
+          <span>
+            코드 글꼴 합자 사용
+            <span className="mt-0.5 block text-xs text-fg-muted">
+              켜면 <code className="font-mono">&gt;=</code> <code className="font-mono">&lt;&gt;</code> <code className="font-mono">!=</code> 가 한 기호처럼 이어져 보입니다. 처음 배울 때는 두 글자로 따로 보이는 게 헷갈리지 않아 기본은 꺼 두었습니다.
+            </span>
+          </span>
+        </label>
       </Section>
 
       <Section

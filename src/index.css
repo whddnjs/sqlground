@@ -119,6 +119,25 @@ kbd {
   font-family: var(--font-mono);
 }
 
+/*
+ * 코드 글꼴 합자. 설정(기본 끔)에 따라 <html class="ligatures"> 로 켠다.
+ * 끄면 >= <> != 가 두 글자로 따로 보인다. 에디터, 결과 그리드, 코드 조각, SQL 미리보기 모두 해당
+ */
+.font-mono,
+code,
+kbd,
+pre,
+.cm-editor {
+  font-variant-ligatures: none;
+}
+html.ligatures .font-mono,
+html.ligatures code,
+html.ligatures kbd,
+html.ligatures pre,
+html.ligatures .cm-editor {
+  font-variant-ligatures: normal;
+}
+
 /* 학습·문제 본문 (react-markdown 출력) */
 .lesson-body { line-height: 1.75; font-size: 15px; color: var(--color-fg); }
 .lesson-body h2 { font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; margin: 2.25rem 0 0.75rem; padding-top: 1.25rem; border-top: 1px solid var(--color-line); }

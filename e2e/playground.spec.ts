@@ -147,4 +147,21 @@ test.describe('연습장', () => {
     // 에디터에도 같은 문장이 남아 있으므로 히스토리 항목(code)으로 좁힌다
     await expect(page.locator('li code', { hasText: 'SELECT 42 AS answer;' })).toBeVisible()
   })
+
+  test('코드 합자는 기본으로 꺼져 있고, 설정에서 켜면 에디터와 코드에 적용된다', async ({ page }) => {
+    await openApp(page)
+    const ligatures = async () => {
+      await expect(page.locator('.cm-content').first()).toBeVisible()
+      return page.evaluate(() => getComputedStyle(document.querySelector('.cm-content')!).fontVariantLigatures)
+    }
+    expect(await ligatures()).toBe('none')
+
+    await page.getByRole('link', { name: '설정' }).click()
+    await page.getByRole('checkbox', { name: /코드 글꼴 합자 사용/ }).check()
+    await page.getByRole('link', { name: '연습장' }).click()
+    expect(await ligatures()).toBe('normal')
+
+    await page.reload()
+    expect(await ligatures()).toBe('normal')
+  })
 })

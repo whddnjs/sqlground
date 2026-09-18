@@ -1,0 +1,1 @@
+{"id":"H-a6gyhgmlrs","requirements":["R-mnyuhy2oct"],"reason":"JetBrains Mono 의 합자로 >= <> != 가 한 기호처럼 붙어 초보자가 두 글자인지 알 수 없었다. 사용자 결정으로 설정 항목(기본 끔)으로 두고 코드 글꼴 전체에 적용한다"}

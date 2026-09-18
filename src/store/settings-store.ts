@@ -12,9 +12,11 @@ export interface Settings {
   fontSize: number
   /** FOREIGN KEY 제약 강제 */
   foreignKeys: boolean
+  /** 코드 글꼴 합자(>= <> != 를 한 기호처럼 잇기). 기본은 끔 */
+  ligatures: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', fontSize: 14, foreignKeys: true }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', fontSize: 14, foreignKeys: true, ligatures: false }
 
 const THEMES: Theme[] = ['system', 'light', 'dark']
 
@@ -25,6 +27,7 @@ function load(): Settings {
     theme: THEMES.includes(s.theme as Theme) ? (s.theme as Theme) : DEFAULT_SETTINGS.theme,
     fontSize: typeof s.fontSize === 'number' && s.fontSize >= 11 && s.fontSize <= 22 ? s.fontSize : DEFAULT_SETTINGS.fontSize,
     foreignKeys: typeof s.foreignKeys === 'boolean' ? s.foreignKeys : DEFAULT_SETTINGS.foreignKeys,
+    ligatures: typeof s.ligatures === 'boolean' ? s.ligatures : DEFAULT_SETTINGS.ligatures,
   }
 }
 
@@ -35,7 +38,7 @@ interface SettingsState extends Settings {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   ...load(),
   update(patch) {
-    const next: Settings = { theme: get().theme, fontSize: get().fontSize, foreignKeys: get().foreignKeys, ...patch }
+    const next: Settings = { theme: get().theme, fontSize: get().fontSize, foreignKeys: get().foreignKeys, ligatures: get().ligatures, ...patch }
     writeJson(KEY, next)
     set(next)
   },

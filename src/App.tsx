@@ -23,12 +23,16 @@ export default function App() {
   const code = useEditorStore((s) => s.code)
   const { pathname } = useLocation()
   const theme = useSettingsStore((s) => s.theme)
+  const ligatures = useSettingsStore((s) => s.ligatures)
 
   useEffect(() => {
     void init()
   }, [init])
 
   useEffect(() => applyTheme(theme), [theme])
+  useEffect(() => {
+    document.documentElement.classList.toggle('ligatures', ligatures)
+  }, [ligatures])
 
   const [showShortcuts, setShowShortcuts] = useState(false)
   useEffect(() => {

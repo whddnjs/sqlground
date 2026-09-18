@@ -52,10 +52,10 @@ export function ProblemsView() {
   const [tables, setTables] = useState<TableInfo[]>([])
   // 문제별 화면 상태. 문제가 바뀌면 렌더 중에 바로 새 상태로 바꾼다.
   // effect 로 초기화하면 그 사이에 들어온 입력이 지워지는 틈이 생긴다
-  const fresh = (id: string) => ({ id, code: drafts[id] ?? '', outcome: null as ExecOutcome | null, verdict: null as GradeResult | null, showHint: false, showAnswer: false, attempts: 0 })
+  const fresh = (id: string) => ({ id, code: drafts[id] ?? '', outcome: null as ExecOutcome | null, verdict: null as GradeResult | null, showHint: false, showAnswer: false })
   const [ui, setUi] = useState(() => fresh(current.id))
   if (ui.id !== current.id) setUi(fresh(current.id))
-  const { code, outcome, verdict, showHint, showAnswer, attempts } = ui
+  const { code, outcome, verdict, showHint, showAnswer } = ui
   const patch = (p: Partial<typeof ui>) => setUi((prev) => ({ ...prev, ...p }))
 
   const applyEngine = async (e: AsyncDbEngine) => {
@@ -105,7 +105,6 @@ export function ProblemsView() {
   const submit = async () => {
     const r = await run()
     if (!r || !engine) return
-    setUi((prev) => ({ ...prev, attempts: prev.attempts + 1 }))
     const mineOutcome = r.graded
     if (!mineOutcome || mineOutcome.error || mineOutcome.results.length === 0) {
       patch({ verdict: { ok: false, message: r.shown.error ? '쿼리에 에러가 있습니다. 아래 메시지를 확인하세요.' : '결과가 없습니다. SQL 문을 작성하세요.' } })
@@ -115,7 +114,7 @@ export function ProblemsView() {
     const expected = await execute(current.answerSql).finally(() => setRunning(false))
     const expectedOutcome = expected?.graded
     if (!expectedOutcome || expectedOutcome.error || expectedOutcome.results.length === 0) {
-      patch({ verdict: { ok: false, message: '정답을 계산할 수 없습니다. 예제 DB 를 초기화한 뒤 다시 시도하세요.' } })
+      patch({ verdict: { ok: false, message: '정답을 계산할 수 없습니다. 샘플 데이터 되돌리기를 누른 뒤 다시 시도하세요.' } })
       return
     }
     // 여러 문장을 실행했다면 마지막 조회 결과로 채점
@@ -265,8 +264,7 @@ export function ProblemsView() {
               </button>
               <button
                 onClick={() => patch({ showAnswer: !showAnswer })}
-                disabled={attempts === 0 && !isSolved}
-                title={attempts === 0 && !isSolved ? '한 번 제출한 뒤에 볼 수 있습니다' : undefined}
+                title="정답 쿼리를 보여 줍니다. 보고 나서도 제출과 해결 표시는 똑같이 됩니다"
                 className="btn btn-sm btn-ghost"
               >
                 <Eye size={12} /> 정답 보기
