@@ -1,0 +1,1 @@
+{"id":"H-25lf36gkyv","requirements":[],"documents":["G-lz24kkdkml","G-w3sv4ezcpy"],"reason":"새 화면과 엔진 변경이 기존 결정(디자인 토큰, sql.js export 의 함정, 콘텐츠 검증 규칙)을 어기지 않도록 DESIGN.md 에 흩어져 있던 구현 규칙을 지침 문서로 옮김"}
