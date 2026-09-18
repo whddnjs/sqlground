@@ -130,7 +130,9 @@ export function ProblemsView() {
     setRunning(true)
     try {
       const r = await execute(codeRef.current)
-      if (r) patch({ outcome: r.shown })
+      // 새로 실행한 결과는 아직 채점 전이다. 지난 판정(색과 메시지)을 지워 기본 상태로 돌린다.
+      // 정답을 맞혀 열려 있던 모범 답안은 판정이 지워져도 남도록 "정답 보기" 상태로 넘긴다
+      if (r) patch({ outcome: r.shown, verdict: null, ...(verdict?.ok ? { showAnswer: true } : {}) })
       setRunCount((n) => n + 1)
       return r
     } finally {
@@ -320,30 +322,14 @@ export function ProblemsView() {
           </div>
 
           {/*
-            에디터 아래 영역. 도움(힌트 → 기대 결과 → 모범 답안)은 그것을 연 버튼 바로 아래에,
-            내 실행 결과는 맨 아래 별도 패널에 둔다. 종류마다 색 띠와 아이콘이 달라 한눈에 구분된다
+            에디터 아래 영역: 힌트 → 내 실행 결과 → 기대 결과 → 모범 답안.
+            자주 보는 실행 결과를 에디터 가까이에, 비교 대상인 기대 결과를 그 바로 아래에 둔다.
+            종류마다 색 띠와 아이콘이 달라 한눈에 구분된다
           */}
           <div className="mt-3 flex flex-col gap-3">
             {showHint && (
               <SectionPanel tone="amber" icon={<Lightbulb size={14} />} title="힌트" onClose={() => patch({ showHint: false })}>
                 <p className="text-[13px] leading-relaxed">{current.hint}</p>
-              </SectionPanel>
-            )}
-
-            {showExpected && contextReady && (
-              <SectionPanel tone="accent" icon={<Target size={14} />} title="기대 결과" meta={expectedMeta(current, context.expected)} onClose={() => patch({ showExpected: false })}>
-                <ExpectedResult problem={current} expected={context.expected} />
-              </SectionPanel>
-            )}
-
-            {(showAnswer || verdict?.ok) && (
-              <SectionPanel
-                tone="violet"
-                icon={<GraduationCap size={14} />}
-                title={current.alternatives?.length ? '모범 답안과 다른 풀이' : '모범 답안'}
-                onClose={showAnswer ? () => patch({ showAnswer: false }) : undefined}
-              >
-                <SolutionPanel problem={current} />
               </SectionPanel>
             )}
 
@@ -369,6 +355,23 @@ export function ProblemsView() {
                     </div>
                   )}
                 </div>
+              </SectionPanel>
+            )}
+
+            {showExpected && contextReady && (
+              <SectionPanel tone="accent" icon={<Target size={14} />} title="기대 결과" meta={expectedMeta(current, context.expected)} onClose={() => patch({ showExpected: false })}>
+                <ExpectedResult problem={current} expected={context.expected} />
+              </SectionPanel>
+            )}
+
+            {(showAnswer || verdict?.ok) && (
+              <SectionPanel
+                tone="violet"
+                icon={<GraduationCap size={14} />}
+                title={current.alternatives?.length ? '모범 답안과 다른 풀이' : '모범 답안'}
+                onClose={showAnswer ? () => patch({ showAnswer: false }) : undefined}
+              >
+                <SolutionPanel problem={current} />
               </SectionPanel>
             )}
           </div>

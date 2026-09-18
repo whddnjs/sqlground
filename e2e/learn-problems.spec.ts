@@ -71,10 +71,20 @@ test.describe('문제풀이', () => {
     await page.getByRole('button', { name: '제출' }).click()
     await expect(page.getByText(/열 개수가 다릅니다/)).toBeVisible()
 
+    // 오답 뒤에 그냥 실행하면 지난 판정이 지워지고 결과 패널이 기본 상태로 돌아온다
+    await page.getByRole('button', { name: '실행', exact: true }).click()
+    await expect(page.getByRole('region', { name: '내 실행 결과', exact: true })).toBeVisible()
+    await expect(page.getByText(/열 개수가 다릅니다/)).toBeHidden()
+
     await setEditor(page, 'SELECT name, price AS p FROM products ORDER BY price')
     await page.getByRole('button', { name: '제출' }).click()
     await expect(page.getByText('정답입니다!')).toBeVisible()
     await expect(page.getByText(/^1 \/ \d+ 해결$/)).toBeVisible()
+
+    // 정답 뒤에 다시 실행해도 모범 답안은 닫히지 않는다
+    await page.getByRole('button', { name: '실행', exact: true }).click()
+    await expect(page.getByRole('region', { name: '내 실행 결과', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: /^모범 답안/ })).toBeVisible()
   })
 
   test('정답 보기는 제출 전에도 열리고, 본 뒤에도 제출과 해결 표시는 그대로 된다', async ({ page }) => {
