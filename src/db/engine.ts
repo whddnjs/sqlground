@@ -86,8 +86,8 @@ export interface ExecOptions {
  */
 export interface AsyncDbEngine {
   init(): Promise<void>
-  /** 되돌리기 판단 없이 실행만 (학습·문제풀이용) */
-  exec(sql: string, options?: ExecOptions): Promise<{ outcome: ExecOutcome; tables: TableInfo[] }>
+  /** 되돌리기 판단 없이 실행만 (학습·문제풀이용). changed 는 데이터나 구조가 바뀌었는지 */
+  exec(sql: string, options?: ExecOptions): Promise<{ outcome: ExecOutcome; tables: TableInfo[]; changed: boolean }>
   /** 실행 + 변경 여부 + 실행 직전 스냅샷 (연습장용) */
   run(sql: string, options?: ExecOptions): Promise<RunOutcome>
   /** 실행 중인 쿼리를 중단한다. 실행 중이 아니면 아무 일도 없다 */

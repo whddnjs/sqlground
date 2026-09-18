@@ -14,10 +14,11 @@ export type Request =
 export interface ExecValue {
   outcome: ExecOutcome
   tables: TableInfo[]
+  /** 이 실행이 데이터나 구조를 바꿨는지 */
+  changed: boolean
 }
 
 export interface RunValue extends ExecValue {
-  changed: boolean
   inTransaction: boolean
 }
 

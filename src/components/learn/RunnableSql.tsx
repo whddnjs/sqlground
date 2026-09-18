@@ -1,7 +1,7 @@
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { ExternalLink, Play, RotateCcw, Square } from 'lucide-react'
+import { ExternalLink, Pencil, Play, RotateCcw, Square } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { ExecOutcome } from '../../db/engine'
 import { useLessonDb } from '../../learn/lesson-db-context'
@@ -20,6 +20,7 @@ export function RunnableSql({ initialSql }: Props) {
   const [running, setRunning] = useState(false)
   const [code, setCode] = useState(initialSql)
   const [outcome, setOutcome] = useState<ExecOutcome | null>(null)
+  const [changed, setChanged] = useState(false)
   const fontSize = useSettingsStore((s) => s.fontSize)
 
   // 단축키 핸들러가 항상 최신 code 를 보도록 ref 로 둔다 (extensions 를 매번 새로 만들지 않기 위해)
@@ -31,7 +32,10 @@ export function RunnableSql({ initialSql }: Props) {
     setRunning(true)
     void onRunRef
       .current(codeRef.current)
-      .then(setOutcome)
+      .then((r) => {
+        setOutcome(r.outcome)
+        setChanged(r.changed)
+      })
       .finally(() => setRunning(false))
   }
   const extensions = useMemo(
@@ -81,6 +85,11 @@ export function RunnableSql({ initialSql }: Props) {
               {r.columns.length > 0 ? <ResultGrid result={r} /> : <p className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>}
             </div>
           ))}
+          {changed && !outcome.error && (
+            <p className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
+              <Pencil size={11} /> 이 예제는 학습용 DB 의 데이터를 바꿨어요. 위쪽 "샘플 데이터 되돌리기" 로 처음 상태로 돌아갈 수 있습니다.
+            </p>
+          )}
           {outcome.error && (
             <div className="rounded border border-red-300 bg-red-50 p-2 text-xs dark:border-red-800 dark:bg-red-950">
               <p className="font-mono text-red-600 dark:text-red-400">{outcome.error.message}</p>

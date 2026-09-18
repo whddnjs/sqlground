@@ -25,7 +25,7 @@ test.describe('학습', () => {
     await expect(page.getByRole('option', { name: /^city/ })).toBeVisible()
   })
 
-  test('끝나지 않는 예제를 중단하면 예제 DB 가 샘플 상태로 돌아오고 계속 쓸 수 있다', async ({ page }) => {
+  test('끝나지 않는 예제를 중단하면 학습용 DB 가 샘플 상태로 돌아오고 계속 쓸 수 있다', async ({ page }) => {
     await openApp(page)
     await page.getByRole('link', { name: '학습' }).click()
     await setEditor(page, 'DROP TABLE order_items; WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c;')
@@ -36,6 +36,20 @@ test.describe('학습', () => {
     await setEditor(page, 'SELECT count(*) AS n FROM order_items;')
     await page.getByRole('button', { name: '실행', exact: true }).first().click()
     await expect(page.getByRole('columnheader', { name: 'n' })).toBeVisible()
+  })
+
+  test('데이터를 바꾸는 예제를 실행하면 표시가 뜨고, 되돌리기를 누르면 사라진다', async ({ page }) => {
+    await page.goto('/learn/update-delete')
+    await expect(page.getByRole('button', { name: /샘플 데이터 되돌리기/ })).not.toContainText('데이터가 바뀌었어요')
+
+    // 첫 예제: 도서 가격 10% 인상 (UPDATE)
+    await page.getByRole('button', { name: '실행', exact: true }).first().click()
+    await expect(page.getByText(/이 예제는 학습용 DB 의 데이터를 바꿨어요/).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /샘플 데이터 되돌리기/ })).toContainText('데이터가 바뀌었어요')
+
+    await page.getByRole('button', { name: /샘플 데이터 되돌리기/ }).click()
+    await expect(page.getByRole('button', { name: /샘플 데이터 되돌리기/ })).not.toContainText('데이터가 바뀌었어요')
+    await expect(page.getByText(/이 예제는 학습용 DB 의 데이터를 바꿨어요/)).toHaveCount(0)
   })
 
   test('단원 아래 문제 링크로 문제풀이로 이동한다', async ({ page }) => {

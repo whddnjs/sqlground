@@ -132,6 +132,7 @@ export class WorkerEngine implements AsyncDbEngine {
       const tables = (await this.send({ op: 'getTables' })) as TableInfo[]
       const outcome: ExecOutcome = { results: [], error: { message, sql: active.sql }, interrupted: true }
       const value: RunValue = { outcome, tables, changed: false, inTransaction: false }
+      // exec 요청도 같은 모양(changed 포함)으로 끝낸다
       interrupted?.resolve(value)
     })
   }

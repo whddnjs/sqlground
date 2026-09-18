@@ -199,10 +199,10 @@ export function ProblemsView() {
             </button>
             <button
               onClick={() => void resetLessonEngine().then(applyEngine)}
-              title="예제 DB 를 샘플 데이터 상태로 되돌립니다"
+              title="문제풀이용 DB 만 샘플 데이터 상태로 되돌립니다. 연습장의 내 작업은 그대로예요"
               className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-hover"
             >
-              <RotateCcw size={12} /> 예제 DB 초기화
+              <RotateCcw size={12} /> 샘플 데이터 되돌리기
             </button>
           </div>
 

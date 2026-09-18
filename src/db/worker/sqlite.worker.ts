@@ -21,7 +21,9 @@ async function handle(req: Request): Promise<{ value: unknown; transfer?: Transf
     }
     case 'exec': {
       const e = requireEngine()
-      const value: ExecValue = { outcome: e.exec(req.sql), tables: e.getTables() }
+      const before = e.changeToken()
+      const outcome = e.exec(req.sql)
+      const value: ExecValue = { outcome, tables: e.getTables(), changed: e.changeToken() !== before }
       return { value }
     }
     case 'run': {

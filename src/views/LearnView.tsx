@@ -77,15 +77,19 @@ export function LearnView() {
     [q],
   )
 
-  const run = async (sql: string): Promise<ExecOutcome> => {
-    if (!engine) return { results: [], error: { message: '학습용 DB 를 아직 불러오는 중입니다', sql } }
-    const { outcome, tables: next } = await engine.exec(sql, { timeoutMs: LESSON_TIMEOUT_MS })
+  // 데이터를 바꾸는 예제를 실행한 적이 있는지. 되돌리기 버튼을 강조하는 데 쓴다
+  const [dirty, setDirty] = useState(false)
+
+  const run = async (sql: string): Promise<{ outcome: ExecOutcome; changed: boolean }> => {
+    if (!engine) return { outcome: { results: [], error: { message: '학습용 DB 를 아직 불러오는 중입니다', sql } }, changed: false }
+    const { outcome, tables: next, changed } = await engine.exec(sql, { timeoutMs: LESSON_TIMEOUT_MS })
+    if (changed) setDirty(true)
     // 구조가 실제로 바뀐 경우에만 갱신해 불필요한 다시 그리기를 막는다
     setTables((prev) => (schemaKey(prev) === schemaKey(next) ? prev : next))
     if (outcome.interrupted) {
-      return { ...outcome, error: { ...outcome.error!, message: `${outcome.error!.message} 예제 DB 는 샘플 데이터 상태로 돌아갔습니다.` } }
+      return { outcome: { ...outcome, error: { ...outcome.error!, message: `${outcome.error!.message} 학습용 DB 는 샘플 데이터 상태로 돌아갔습니다.` } }, changed: false }
     }
-    return outcome
+    return { outcome, changed }
   }
   const openInPlayground = (sql: string) => {
     appendCode(sql)
@@ -95,6 +99,7 @@ export function LearnView() {
     const e = await resetLessonEngine()
     setEngine(e)
     setTables(await e.getTables())
+    setDirty(false)
     setEngineVersion((v) => v + 1)
   }
 
@@ -152,8 +157,13 @@ export function LearnView() {
             <span>
               {index + 1} / {ALL_LESSONS.length}
             </span>
-            <button onClick={() => void reset()} title="학습용 DB 를 샘플 데이터 상태로 되돌립니다" className="ml-auto flex items-center gap-1 rounded px-2 py-1 hover:bg-hover">
-              <RotateCcw size={12} /> 예제 DB 초기화
+            <button
+              onClick={() => void reset()}
+              title="학습 예제용 DB 만 샘플 데이터 상태로 되돌립니다. 연습장의 내 작업은 그대로예요"
+              className={['btn btn-sm ml-auto', dirty ? 'border border-amber-500/50 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-300' : 'btn-ghost'].join(' ')}
+            >
+              <RotateCcw size={12} /> 샘플 데이터 되돌리기
+              {dirty && <span className="ml-0.5 text-[10px] font-normal">· 데이터가 바뀌었어요</span>}
             </button>
           </div>
           <h1 className="mb-5 text-[26px] font-bold tracking-tight">{shown.title}</h1>
