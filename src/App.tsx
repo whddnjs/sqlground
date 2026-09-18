@@ -3,12 +3,13 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { Header } from './components/layout/Header'
 import { NavRail } from './components/layout/NavRail'
 import { ShortcutsDialog } from './components/layout/ShortcutsDialog'
-import type { Preset } from './db/presets'
+import { ConfirmHost } from './components/ui/ConfirmHost'
+import { confirm } from './store/confirm-store'
 import { useDbStore } from './store/db-store'
-import { useDescriptionStore } from './store/description-store'
 import { useEditorStore } from './store/editor-store'
 import { applyTheme, useSettingsStore } from './store/settings-store'
 import { useUiStore } from './store/ui-store'
+import { usePresetLoader } from './lib/use-preset-loader'
 import { PlaygroundView } from './views/PlaygroundView'
 
 // 첫 화면에 필요 없는 뷰는 메뉴를 눌렀을 때 내려받는다 (번들 분리)
@@ -17,10 +18,9 @@ const ProblemsView = lazy(() => import('./views/ProblemsView').then((m) => ({ de
 const SettingsView = lazy(() => import('./views/SettingsView').then((m) => ({ default: m.SettingsView })))
 
 export default function App() {
-  const { status, loadError, tables, init, run, reset, loadPreset } = useDbStore()
+  const { status, loadError, init, run, reset } = useDbStore()
   const code = useEditorStore((s) => s.code)
   const view = useUiStore((s) => s.view)
-  const setDescriptions = useDescriptionStore((s) => s.setMany)
   const theme = useSettingsStore((s) => s.theme)
 
   useEffect(() => {
@@ -44,17 +44,17 @@ export default function App() {
   }, [])
 
   const handleReset = useCallback(() => {
-    if (window.confirm('모든 테이블과 데이터를 지우고 빈 DB 로 초기화할까요?')) void reset()
+    void confirm({
+      title: 'DB 를 초기화할까요?',
+      message: '모든 테이블과 데이터를 지우고 빈 DB 로 돌아갑니다.',
+      confirmLabel: '초기화',
+      danger: true,
+      undoable: true,
+    }).then((ok) => {
+      if (ok) void reset()
+    })
   }, [reset])
-  const handleLoadPreset = useCallback(
-    (preset: Preset) => {
-      const existing = tables.map((t) => t.name).filter((n) => preset.tables.includes(n))
-      if (existing.length > 0 && !window.confirm(`이미 있는 테이블(${existing.join(', ')})을 샘플 데이터로 덮어씁니다. 계속할까요?`)) return
-      void loadPreset(preset)
-      setDescriptions(preset.descriptions)
-    },
-    [tables, loadPreset, setDescriptions],
-  )
+  const handleLoadPreset = usePresetLoader()
 
   if (status === 'loading') return <Centered>DB 엔진을 불러오는 중…</Centered>
   if (status === 'error') return <Centered>DB 엔진을 불러오지 못했습니다: {loadError}</Centered>
@@ -77,6 +77,7 @@ export default function App() {
         </main>
       </div>
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      <ConfirmHost />
     </div>
   )
 }

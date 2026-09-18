@@ -5,8 +5,10 @@ import { downloadCsv } from '../../lib/csv'
 import { detectEditableTarget } from '../../lib/editable-select'
 import { explainSqlError } from '../../lib/error-messages'
 import { buildDelete, buildDeleteMany, buildUpdate } from '../../lib/sql-builder'
+import { confirm } from '../../store/confirm-store'
 import type { HistoryEntry, UiNotice } from '../../store/db-store'
 import { ResultGrid } from './ResultGrid'
+import { WelcomeCard } from './WelcomeCard'
 
 interface Props {
   outcome: ExecOutcome | null
@@ -56,6 +58,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick(): 
 }
 
 function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome' | 'notice' | 'tables' | 'onRunFromUi'>) {
+  if (!outcome && !notice && tables.length === 0) return <WelcomeCard />
   if (!outcome && !notice) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
@@ -113,12 +116,16 @@ function Results({ outcome, notice, tables, onRunFromUi }: Pick<Props, 'outcome'
                   if (!editable) return
                   const ref = { table: editable.table.name, pkColumn: editable.pk.name, pkValue: pkValue as string | number }
                   const sql = buildDelete(ref)
-                  if (window.confirm(`이 행을 삭제할까요?\n\n${sql}`)) onRunFromUi(sql, r.sql)
+                  void confirm({ title: '이 행을 삭제할까요?', sql, confirmLabel: '삭제', danger: true, undoable: true }).then((ok) => {
+                    if (ok) onRunFromUi(sql, r.sql)
+                  })
                 }}
                 onDeleteRows={(pkValues: SqlValue[]) => {
                   if (!editable) return
                   const sql = buildDeleteMany(editable.table.name, editable.pk.name, pkValues as Array<string | number>)
-                  if (window.confirm(`선택한 ${pkValues.length}행을 삭제할까요?\n\n${sql}`)) onRunFromUi(sql, r.sql)
+                  void confirm({ title: `선택한 ${pkValues.length}행을 삭제할까요?`, sql, confirmLabel: '삭제', danger: true, undoable: true }).then((ok) => {
+                    if (ok) onRunFromUi(sql, r.sql)
+                  })
                 }}
               />
             )}

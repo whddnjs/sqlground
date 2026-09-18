@@ -4,6 +4,7 @@ import type { ExecOutcome, TableInfo } from '../db/engine'
 import { clearDb, loadDb, saveDb } from '../db/persist'
 import type { Preset } from '../db/presets'
 import { SnapshotStack } from '../db/snapshot'
+import { isRecord, readJson, writeJson } from '../lib/storage'
 import { useSettingsStore } from './settings-store'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -55,12 +56,27 @@ interface DbState {
 const engine = createEngine()
 const snapshots = new SnapshotStack(10)
 const HISTORY_LIMIT = 100
+const HISTORY_KEY = 'sqlground:history'
+const SOURCES: HistorySource[] = ['editor', 'ui', 'preset']
+
+/** 새로고침해도 실행 이력이 남도록 브라우저에 저장한다. 깨진 항목은 버린다 */
+function loadHistory(): HistoryEntry[] {
+  const raw = readJson(HISTORY_KEY)
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (e): e is HistoryEntry =>
+        isRecord(e) && typeof e.id === 'number' && typeof e.sql === 'string' && SOURCES.includes(e.source as HistorySource) && typeof e.ok === 'boolean' && typeof e.at === 'number',
+    )
+    .slice(0, HISTORY_LIMIT)
+}
+const savedHistory = loadHistory()
 /** 끝나지 않는 쿼리를 자동으로 끊는 한도. 그 전에는 사용자가 중단 버튼으로 끊을 수 있다 */
 const RUN_TIMEOUT_MS = 30_000
 
 const SAVE_DELAY_MS = 500
 let saveTimer: ReturnType<typeof setTimeout> | undefined
-let historyId = 0
+let historyId = savedHistory.reduce((m, e) => Math.max(m, e.id), 0)
 /** 저장할 변경이 남아 있는지. 트랜잭션 중에는 저장을 미루므로 따로 기억해 둔다 */
 let dirty = false
 
@@ -85,7 +101,9 @@ function scheduleSave(changed = true) {
 export const useDbStore = create<DbState>((set, get) => {
   const record = (sql: string, source: HistorySource, ok: boolean) => {
     const entry: HistoryEntry = { id: ++historyId, sql, source, ok, at: Date.now() }
-    return [entry, ...get().history].slice(0, HISTORY_LIMIT)
+    const next = [entry, ...get().history].slice(0, HISTORY_LIMIT)
+    writeJson(HISTORY_KEY, next)
+    return next
   }
 
   /** 실행하고, 바뀐 경우에만 되돌리기 스택에 쌓는다 */
@@ -106,7 +124,7 @@ export const useDbStore = create<DbState>((set, get) => {
     tables: [],
     outcome: null,
     notice: null,
-    history: [],
+    history: savedHistory,
     undoCount: 0,
     running: false,
 

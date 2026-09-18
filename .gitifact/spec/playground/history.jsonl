@@ -1,0 +1,3 @@
+{"id":"H-fltzo75slm","requirements":["R-dvgxorusdo"],"designs":["S-kl73zrfqtv"],"reason":"브라우저 기본 confirm 이 9곳에 흩어져 디자인과 어긋나고 실행될 SQL 을 보여 줄 수 없었다. 앱 확인창으로 통일하고 SQL 과 되돌리기 가능 여부를 함께 보여 준다"}
+{"id":"H-ufcgz2ynpl","requirements":["R-maywmhfqwe"],"reason":"처음 온 사용자가 빈 DB 와 예시 코드만 보고 샘플 로드를 눌러야 한다는 걸 놓치기 쉬웠다. 테이블이 없을 때 시작 안내를 보여 준다"}
+{"id":"H-cvvcxc7q5h","requirements":["R-uhchn26c4c"],"reason":"DB 와 쿼리 탭은 새로고침해도 남는데 실행 이력만 사라져 일관성이 없었다. 이력을 브라우저에 저장한다"}

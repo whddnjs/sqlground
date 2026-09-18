@@ -1,5 +1,6 @@
 import { Download, Monitor, Moon, Sun, Upload } from 'lucide-react'
 import { useRef } from 'react'
+import { alert, confirm } from '../store/confirm-store'
 import { useDbStore } from '../store/db-store'
 import { useSettingsStore, type Theme } from '../store/settings-store'
 
@@ -26,11 +27,23 @@ export function SettingsView() {
 
   const onFile = async (file: File | undefined) => {
     if (!file) return
-    if (tables.length > 0 && !window.confirm('현재 DB 를 파일 내용으로 완전히 바꿉니다. 되돌리기로 복구할 수 있습니다. 계속할까요?')) return
+    if (tables.length > 0) {
+      const ok = await confirm({
+        title: 'DB 파일을 가져올까요?',
+        message: `현재 DB 를 '${file.name}' 의 내용으로 완전히 바꿉니다.`,
+        confirmLabel: '가져오기',
+        danger: true,
+        undoable: true,
+      })
+      if (!ok) {
+        if (fileRef.current) fileRef.current.value = ''
+        return
+      }
+    }
     try {
       await importDb(new Uint8Array(await file.arrayBuffer()))
     } catch (e) {
-      window.alert(`파일을 열 수 없습니다: ${e instanceof Error ? e.message : String(e)}`)
+      await alert({ title: '파일을 열 수 없습니다', message: e instanceof Error ? e.message : String(e) })
     }
     if (fileRef.current) fileRef.current.value = ''
   }

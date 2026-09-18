@@ -20,3 +20,9 @@ export async function runInPlayground(page: Page, sql: string) {
 
 export const undoButton = (page: Page) => page.getByRole('button', { name: '되돌리기' })
 export const schemaTable = (page: Page, name: string) => page.getByRole('button', { name: new RegExp(`^${name}`) })
+
+/** 헤더의 샘플 로드 메뉴에서 샘플을 고른다. 시작 카드에도 같은 이름의 버튼이 있어 헤더로 범위를 좁힌다 */
+export async function loadSample(page: Page, name: RegExp) {
+  await page.getByRole('button', { name: '샘플 로드' }).click()
+  await page.locator('header').getByRole('button', { name }).click()
+}

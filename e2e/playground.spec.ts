@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openApp, runInPlayground, schemaTable, setEditor, undoButton } from './helpers'
+import { loadSample, openApp, runInPlayground, schemaTable, setEditor, undoButton } from './helpers'
 
 test.describe('연습장', () => {
   test('기본 예시 쿼리가 실행되고 결과와 스키마가 표시된다', async ({ page }) => {
@@ -55,8 +55,7 @@ test.describe('연습장', () => {
 
   test('샘플 로드 후 UI 로 테이블을 만들면 생성된 SQL 이 실행된다', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '샘플 로드' }).click()
-    await page.getByRole('button', { name: /쇼핑몰/ }).click()
+    await loadSample(page, /쇼핑몰/)
     await expect(schemaTable(page, 'customers')).toBeVisible()
 
     await page.getByRole('button', { name: '만들기' }).click()
@@ -72,8 +71,7 @@ test.describe('연습장', () => {
 
   test('FOREIGN KEY 제약이 걸리고 한글 설명이 나온다', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '샘플 로드' }).click()
-    await page.getByRole('button', { name: /쇼핑몰/ }).click()
+    await loadSample(page, /쇼핑몰/)
     await expect(schemaTable(page, 'orders')).toBeVisible()
     await runInPlayground(page, "INSERT INTO orders (customer_id, ordered_at, status) VALUES (999, '2024-01-01', 'paid');")
     await expect(page.getByText('FOREIGN KEY constraint failed')).toBeVisible()
@@ -113,5 +111,37 @@ test.describe('연습장', () => {
 
     await runInPlayground(page, 'SELECT count(*) AS n FROM keep;')
     await expect(page.getByRole('cell', { name: '1', exact: true }).last()).toBeVisible()
+  })
+
+  test('빈 DB 에서는 시작 카드가 보이고, 샘플을 고르면 테이블이 생기며 카드가 사라진다', async ({ page }) => {
+    await openApp(page)
+    await expect(page.getByRole('heading', { name: /아직 테이블이 없어요/ })).toBeVisible()
+    await page.getByRole('button', { name: /^학교/ }).click()
+    await expect(schemaTable(page, 'students')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /아직 테이블이 없어요/ })).toHaveCount(0)
+  })
+
+  test('테이블 삭제는 실행될 SQL 을 보여 주는 앱 확인창을 거치고, 취소하면 아무 일도 없다', async ({ page }) => {
+    await openApp(page)
+    await runInPlayground(page, 'CREATE TABLE t (id INTEGER);')
+    await page.getByRole('button', { name: '테이블 삭제 (DROP)' }).click()
+    const dialog = page.getByRole('dialog', { name: /테이블을 삭제할까요/ })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('DROP TABLE t;')).toBeVisible()
+    await dialog.getByRole('button', { name: '취소' }).click()
+    await expect(schemaTable(page, 't')).toBeVisible()
+
+    await page.getByRole('button', { name: '테이블 삭제 (DROP)' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '삭제' }).click()
+    await expect(schemaTable(page, 't')).toHaveCount(0)
+    await expect(page.getByText('DROP TABLE t;')).toBeVisible()
+  })
+
+  test('실행 이력은 새로고침해도 남는다', async ({ page }) => {
+    await openApp(page)
+    await runInPlayground(page, 'SELECT 42 AS answer;')
+    await page.reload()
+    await page.getByRole('button', { name: /히스토리/ }).click()
+    await expect(page.getByText('SELECT 42 AS answer;')).toBeVisible()
   })
 })

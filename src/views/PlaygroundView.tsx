@@ -9,6 +9,7 @@ import { ResultPanel } from '../components/result/ResultPanel'
 import { SchemaBrowser } from '../components/schema/SchemaBrowser'
 import type { TableInfo } from '../db/engine'
 import { buildDropTable, buildSelectAll } from '../lib/sql-builder'
+import { confirm } from '../store/confirm-store'
 import { useDbStore } from '../store/db-store'
 import { useEditorStore } from '../store/editor-store'
 import { useSettingsStore } from '../store/settings-store'
@@ -52,7 +53,11 @@ export function PlaygroundView() {
   }
   const dropTable = (t: TableInfo) => {
     const sql = buildDropTable(t.name)
-    if (window.confirm(`'${t.name}' 테이블과 모든 데이터를 삭제할까요?\n\n${sql}\n\n(되돌리기로 복구할 수 있습니다)`)) void runFromUi(sql)
+    void confirm({ title: `'${t.name}' 테이블을 삭제할까요?`, message: '테이블과 모든 데이터가 지워집니다.', sql, confirmLabel: '삭제', danger: true, undoable: true }).then(
+      (ok) => {
+        if (ok) void runFromUi(sql)
+      },
+    )
   }
 
   return (

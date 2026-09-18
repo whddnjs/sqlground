@@ -10,6 +10,7 @@ import {
   emptyColumn,
   type ColumnDef,
 } from '../../lib/sql-builder'
+import { confirm } from '../../store/confirm-store'
 import { Modal, SqlPreview, inputClass } from '../ui/Modal'
 
 interface Props {
@@ -132,7 +133,9 @@ export function AlterTableDialog({ table, tables, onClose, onInsert, onRun }: Pr
                   disabled={c.primaryKey || table.columns.length === 1}
                   onClick={() => {
                     const sql = buildDropColumn(table.name, c.name)
-                    if (window.confirm(`'${c.name}' 컬럼과 그 데이터를 삭제할까요?\n\n${sql}`)) onRun(sql)
+                    void confirm({ title: `'${c.name}' 컬럼을 삭제할까요?`, message: '이 컬럼의 데이터가 모두 지워집니다.', sql, confirmLabel: '삭제', danger: true, undoable: true }).then((ok) => {
+                      if (ok) onRun(sql)
+                    })
                   }}
                   title={c.primaryKey ? 'PK 컬럼은 삭제할 수 없습니다' : buildDropColumn(table.name, c.name)}
                   className="shrink-0 rounded p-1 text-fg-subtle hover:bg-red-50 hover:text-red-600 disabled:opacity-30 dark:hover:bg-red-950"

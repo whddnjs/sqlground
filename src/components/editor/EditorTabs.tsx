@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
+import { confirm } from '../../store/confirm-store'
 import { useEditorStore } from '../../store/editor-store'
 
 /** 연습장 에디터 위의 쿼리 탭. 더블클릭으로 이름 변경 */
@@ -43,7 +44,10 @@ export function EditorTabs() {
             )}
             <button
               onClick={() => {
-                if (t.code.trim() === '' || window.confirm(`'${t.name}' 탭을 닫을까요? 작성한 내용이 사라집니다.`)) closeTab(t.id)
+                if (t.code.trim() === '') return closeTab(t.id)
+                void confirm({ title: `'${t.name}' 탭을 닫을까요?`, message: '작성한 내용이 사라집니다.', confirmLabel: '닫기', danger: true }).then((ok) => {
+                  if (ok) closeTab(t.id)
+                })
               }}
               aria-label={`${t.name} 탭 닫기`}
               className={['rounded p-0.5 hover:bg-hover-strong', active ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'].join(' ')}
