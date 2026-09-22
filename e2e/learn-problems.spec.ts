@@ -126,6 +126,28 @@ test.describe('문제풀이', () => {
     await expect(page.getByRole('region', { name: /^모범 답안/ })).toBeVisible()
   })
 
+  test('종합 문제는 목록 끝 "종합 문제" 장에 원래 장 이름으로 나뉘어 있고 관련 단원이 여러 개 보이며, 학습의 장 마지막 단원에서도 이어진다', async ({ page }) => {
+    await page.goto('/problems/p-mix-select-1')
+    await expect(page.getByRole('heading', { level: 1, name: '하반기 주문 현황판' })).toBeVisible()
+    const group = page.getByRole('list', { name: '종합 문제 · 데이터 조회' })
+    await expect(group.getByText('데이터 조회', { exact: true })).toBeVisible()
+    await expect(group.getByRole('button')).toHaveCount(3)
+    // 단원별 묶음에는 종합 문제가 섞이지 않는다
+    await expect(page.getByRole('list', { name: '데이터 조회 · WHERE 로 조건 걸기' }).getByRole('button')).toHaveCount(3)
+    for (const name of ['WHERE 로 조건 걸기', 'CASE 로 값 분기하기', '정렬과 개수 제한']) {
+      await expect(page.getByRole('button', { name: new RegExp(`^${name}`) }).last()).toBeVisible()
+    }
+
+    // 데이터 조회 장의 마지막 단원(CASE)에서 종합 문제 목록이 보인다
+    await page.goto('/learn/case')
+    await expect(page.getByRole('heading', { level: 2, name: '데이터 조회 종합 문제' })).toBeVisible()
+    await page.getByRole('button', { name: '재고 금액 상위 5개 상품' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: '재고 금액 상위 5개 상품' })).toBeVisible()
+    // 마지막이 아닌 단원에는 없다
+    await page.goto('/learn/where')
+    await expect(page.getByRole('heading', { level: 2, name: /종합 문제/ })).toBeHidden()
+  })
+
   test('정답 보기는 제출 전에도 열리고, 본 뒤에도 제출과 해결 표시는 그대로 된다', async ({ page }) => {
     await page.goto('/problems/p-select-2')
     await page.getByRole('button', { name: '정답 보기' }).click()
@@ -215,7 +237,8 @@ test.describe('주소와 이동', () => {
 
   test('문제에서 관련 단원으로 갔다가 뒤로 가기를 누르면 문제로 돌아온다', async ({ page }) => {
     await page.goto('/problems/p-join-1')
-    await page.getByRole('button', { name: /관련 단원/ }).click()
+    // 관련 단원은 단원 이름 버튼 목록이다
+    await page.getByRole('button', { name: 'JOIN 기본' }).click()
     await expect(page).toHaveURL(/\/learn\/join$/)
     await page.goBack()
     await expect(page).toHaveURL(/\/problems\/p-join-1$/)

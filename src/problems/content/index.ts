@@ -4,6 +4,7 @@ import type { Problem } from '../types'
  * 단원마다 쉬움 → 보통 → 어려움 순으로 3문제. 개념 소개 단원과 결과 비교가 어려운 단원은 1~2문제.
  * 설명에는 결과 열을 순서대로 적는다. 답이 여러 개 나올 만한 문제에만 alternatives 를 단다.
  * 같은 단원 안에서는 이 파일의 순서가 곧 화면 순서다.
+ * 파일 끝의 종합 문제(mixes)는 장마다 3문제, 보통 → 어려움 순이며 그 장의 단원 2개 이상을 섞는다.
  */
 export const PROBLEMS: Problem[] = [
   // ── 시작하기 > 테이블, 행, 열
@@ -706,5 +707,245 @@ export const PROBLEMS: Problem[] = [
     description: "**'김개발'** 아래에 있는 사람이 **직속과 그 아래 단계까지 모두 합쳐** 몇 명인지 숫자 하나로 조회하세요. 본인은 세지 않습니다.\n\n결과 열: ① 인원 수",
     answerSql: "WITH RECURSIVE t(id) AS (SELECT id FROM employees WHERE name = '김개발' UNION ALL SELECT e.id FROM employees e JOIN t ON e.manager_id = t.id) SELECT count(*) - 1 FROM t",
     hint: 'WITH RECURSIVE 로 김개발에서 시작해 manager_id 를 따라 한 단계씩 내려갑니다. 마지막에 본인 1 명을 뺍니다.',
+  },
+
+  // ── 종합 문제 > 데이터 조회 (WHERE · CASE · 정렬 · NULL · 함수)
+  {
+    id: 'p-mix-select-1',
+    lessonId: 'where',
+    mixes: ['where', 'case', 'order-limit'],
+    title: '하반기 주문 현황판',
+    difficulty: 2,
+    description:
+      '`orders` 에서 **2024년 7월 1일 이후** 주문을 조회하세요. 상태는 한글로 바꿉니다: paid → 결제완료, shipped → 배송중, delivered → 배송완료, cancelled → 취소. **최근 주문이 위로**, 같은 날이면 주문 번호가 큰 것이 위로 오게 정렬하세요.\n\n결과 열: ① 주문 번호(id) ② 주문일(ordered_at) ③ 상태(한글)\n\n이 문제는 WHERE, CASE, 정렬 단원을 씁니다.',
+    answerSql:
+      "SELECT id, ordered_at, CASE status WHEN 'paid' THEN '결제완료' WHEN 'shipped' THEN '배송중' WHEN 'delivered' THEN '배송완료' ELSE '취소' END AS status_kr FROM orders WHERE ordered_at >= '2024-07-01' ORDER BY ordered_at DESC, id DESC",
+    answerNote: '값이 정확히 일치하는 분기라 `CASE status WHEN ...` 짧은 형태를 썼습니다. 날짜는 ISO 문자열이라 크기 비교가 곧 날짜 비교입니다.',
+    hint: "WHERE ordered_at >= '2024-07-01', CASE status WHEN ... END, ORDER BY ordered_at DESC, id DESC 를 한 문장에 씁니다.",
+    orderMatters: true,
+  },
+  {
+    id: 'p-mix-select-2',
+    lessonId: 'functions',
+    mixes: ['functions', 'null', 'case', 'where', 'order-limit'],
+    title: '2019년 이후 입사자와 배정 여부',
+    difficulty: 3,
+    description:
+      '`employees` 에서 **2019년 1월 1일 이후 입사한 직원** 을 조회하세요. 입사 연도는 `hire_date` 에서 앞 4글자를 잘라 만들고, 부서가 없으면(`department_id` 가 NULL) **미배정**, 있으면 **배정** 이라고 표시합니다. **입사일 순** 으로 정렬하세요.\n\n결과 열: ① 이름(name) ② 입사 연도(4자리 문자열) ③ 배정 여부(배정/미배정)\n\n이 문제는 함수, NULL, CASE, WHERE, 정렬 단원을 씁니다.',
+    answerSql:
+      "SELECT name, substr(hire_date, 1, 4) AS hire_year, CASE WHEN department_id IS NULL THEN '미배정' ELSE '배정' END AS assigned FROM employees WHERE hire_date >= '2019-01-01' ORDER BY hire_date",
+    answerNote: 'NULL 은 `=` 로 비교할 수 없으니 CASE 안에서 `IS NULL` 을 씁니다. `substr(hire_date, 1, 4)` 대신 `strftime(\'%Y\', hire_date)` 도 됩니다.',
+    alternatives: [
+      {
+        sql: "SELECT name, strftime('%Y', hire_date), CASE WHEN department_id IS NULL THEN '미배정' ELSE '배정' END FROM employees WHERE hire_date >= '2019-01-01' ORDER BY hire_date",
+        note: '날짜 함수 `strftime` 으로 연도를 뽑는 방법입니다. 결과는 같지만 "날짜에서 연도를 꺼낸다" 는 뜻이 더 분명합니다.',
+      },
+    ],
+    hint: "substr(hire_date, 1, 4), CASE WHEN department_id IS NULL THEN '미배정' ELSE '배정' END, WHERE hire_date >= '2019-01-01', ORDER BY hire_date.",
+    orderMatters: true,
+  },
+  {
+    id: 'p-mix-select-3',
+    lessonId: 'order-limit',
+    mixes: ['order-limit', 'functions', 'case'],
+    title: '재고 금액 상위 5개 상품',
+    difficulty: 3,
+    description:
+      '`products` 에서 **재고 금액(가격 × 재고)이 큰 상품 5개** 를 조회하세요. 재고 금액은 **만 원 단위로 소수 첫째 자리까지** 반올림하고(예: 4,935,000 → 493.5), 재고 상태는 재고가 50 이상이면 **많음**, 20 이상이면 **보통**, 그 미만이면 **적음** 으로 표시합니다. 재고 금액이 큰 순서여야 합니다.\n\n결과 열: ① 이름(name) ② 재고 금액(만 원) ③ 재고 상태\n\n이 문제는 정렬·개수 제한, 함수, CASE 단원을 씁니다.',
+    answerSql:
+      "SELECT name, round(price * stock / 10000.0, 1) AS stock_value_man, CASE WHEN stock >= 50 THEN '많음' WHEN stock >= 20 THEN '보통' ELSE '적음' END AS stock_state FROM products ORDER BY price * stock DESC LIMIT 5",
+    answerNote: '`10000.0` 처럼 한쪽을 실수로 만들어야 소수가 남습니다. 정렬 기준은 별칭 대신 원래 식(`price * stock`)을 써도 됩니다.',
+    hint: 'round(price * stock / 10000.0, 1), CASE WHEN stock >= 50 ... WHEN stock >= 20 ... ELSE ... END, ORDER BY price * stock DESC LIMIT 5.',
+    orderMatters: true,
+  },
+
+  // ── 종합 문제 > 집계와 그룹 (GROUP BY · 집계 함수 · CASE · 날짜 함수)
+  {
+    id: 'p-mix-agg-1',
+    lessonId: 'group-by',
+    mixes: ['group-by', 'aggregate-functions', 'functions', 'case'],
+    title: '월별 주문 수와 취소 수',
+    difficulty: 2,
+    description:
+      '`orders` 를 **월별** 로 묶어 그 달의 **전체 주문 수** 와 **취소된 주문 수** 를 조회하세요. 월은 `strftime(\'%Y-%m\', ordered_at)` 로 만든 `2024-01` 형태이고, 월 순서대로 정렬합니다.\n\n결과 열: ① 월(YYYY-MM) ② 주문 수 ③ 취소 수\n\n이 문제는 GROUP BY, 집계 함수, 날짜 함수, CASE 단원을 씁니다.',
+    answerSql:
+      "SELECT strftime('%Y-%m', ordered_at) AS month, count(*) AS orders, sum(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled FROM orders GROUP BY month ORDER BY month",
+    answerNote: '조건에 맞는 행만 세려면 `sum(CASE WHEN ... THEN 1 ELSE 0 END)` 패턴을 씁니다. SQLite 에서는 `sum(status = \'cancelled\')` 처럼 비교식(참=1)을 바로 더해도 됩니다.',
+    alternatives: [
+      {
+        sql: "SELECT strftime('%Y-%m', ordered_at), count(*), sum(status = 'cancelled') FROM orders GROUP BY 1 ORDER BY 1",
+        note: 'SQLite 는 비교식이 1/0 이라 `sum(status = \'cancelled\')` 로 줄일 수 있습니다. 다른 DB 에서는 통하지 않을 수 있어 CASE 가 더 안전합니다.',
+      },
+    ],
+    hint: "strftime('%Y-%m', ordered_at) 로 묶고, 취소 수는 sum(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END).",
+  },
+  {
+    id: 'p-mix-agg-2',
+    lessonId: 'group-by',
+    mixes: ['group-by', 'aggregate-functions', 'where', 'null'],
+    title: '2024-1 학기 과목별 성적 통계',
+    difficulty: 3,
+    description:
+      '`enrollments` 에서 **2024-1 학기** 의 수강을 **과목별** 로 묶어, 성적이 입력된 수강 수와 평균 성적(소수 첫째 자리 반올림), 최고 점수를 조회하세요. **평균이 75 이상인 과목만** 남기고 평균이 높은 순으로 정렬합니다.\n\n결과 열: ① 과목 번호(course_id) ② 성적 있는 수강 수 ③ 평균 성적 ④ 최고 점수\n\n이 문제는 GROUP BY·HAVING, 집계 함수, WHERE, NULL 단원을 씁니다.',
+    answerSql:
+      "SELECT course_id, count(score) AS scored, round(avg(score), 1) AS avg_score, max(score) AS top FROM enrollments WHERE semester = '2024-1' GROUP BY course_id HAVING avg(score) >= 75 ORDER BY avg_score DESC",
+    answerNote: '학기 조건은 묶기 전이라 WHERE, 평균 조건은 묶은 뒤라 HAVING 입니다. `count(score)` 는 NULL 을 빼고 셉니다.',
+    hint: "WHERE semester = '2024-1' → GROUP BY course_id → HAVING avg(score) >= 75. 성적 있는 수강 수는 count(score).",
+  },
+  {
+    id: 'p-mix-agg-3',
+    lessonId: 'group-by',
+    mixes: ['group-by', 'aggregate-functions', 'case'],
+    title: '단골 고객의 배송·취소 현황',
+    difficulty: 3,
+    description:
+      '`orders` 를 **고객별** 로 묶어 **주문이 3건 이상인 고객** 만 조회하세요. 전체 주문 수, 배송완료 수, 그리고 **취소 비율(%)** 을 소수 첫째 자리까지 구합니다. 취소 비율은 취소 수 ÷ 전체 주문 수 × 100 입니다. 주문 수가 많은 순, 같으면 고객 번호 순으로 정렬합니다.\n\n결과 열: ① 고객 번호(customer_id) ② 주문 수 ③ 배송완료 수 ④ 취소 비율\n\n이 문제는 GROUP BY·HAVING, 집계 함수, CASE 단원을 씁니다.',
+    answerSql:
+      "SELECT customer_id, count(*) AS orders, sum(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered, round(100.0 * sum(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) / count(*), 1) AS cancel_pct FROM orders GROUP BY customer_id HAVING count(*) >= 3 ORDER BY orders DESC, customer_id",
+    answerNote: '비율은 `100.0 *` 처럼 실수로 시작해야 정수 나눗셈으로 0 이 되지 않습니다.',
+    hint: 'sum(CASE WHEN status = ... THEN 1 ELSE 0 END) 를 두 번 쓰고, 비율은 round(100.0 * 취소수 / count(*), 1). HAVING count(*) >= 3.',
+    orderMatters: true,
+  },
+
+  // ── 종합 문제 > 여러 테이블 다루기 (JOIN · LEFT JOIN · 서브쿼리 · UNION)
+  {
+    id: 'p-mix-join-1',
+    lessonId: 'left-join',
+    mixes: ['left-join', 'join', 'null'],
+    title: '고객별 배송완료 구매액 (0 포함)',
+    difficulty: 2,
+    description:
+      '**모든 고객** 에 대해 **배송완료(delivered) 주문의 구매액 합계** 를 조회하세요. 구매액은 `order_items` 의 수량 × 단가입니다. 배송완료 주문이 없는 고객은 **0** 으로 나와야 합니다. 구매액이 큰 순, 같으면 이름 순으로 정렬합니다.\n\n결과 열: ① 고객 이름(name) ② 배송완료 구매액\n\n이 문제는 LEFT JOIN, JOIN, NULL 단원을 씁니다.',
+    answerSql:
+      "SELECT c.name, COALESCE(sum(oi.quantity * oi.unit_price), 0) AS total FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'delivered' LEFT JOIN order_items oi ON oi.order_id = o.id GROUP BY c.id ORDER BY total DESC, c.name",
+    answerNote: '상태 조건을 WHERE 에 쓰면 배송완료가 없는 고객이 사라지므로 ON 에 넣습니다. 짝이 없으면 sum 이 NULL 이라 COALESCE 로 0 을 만듭니다.',
+    hint: "LEFT JOIN orders ... ON o.customer_id = c.id AND o.status = 'delivered' → LEFT JOIN order_items → COALESCE(sum(...), 0).",
+    orderMatters: true,
+  },
+  {
+    id: 'p-mix-join-2',
+    lessonId: 'subquery',
+    mixes: ['subquery', 'join', 'group-by'],
+    title: '평균보다 많이 산 고객',
+    difficulty: 3,
+    description:
+      '취소되지 않은 주문을 기준으로 **고객별 총 구매액** 을 구한 뒤, 그 **평균보다 많이 산 고객** 만 조회하세요. 구매액은 `order_items` 의 수량 × 단가이고, 구매액이 큰 순으로 정렬합니다.\n\n결과 열: ① 고객 이름(name) ② 총 구매액\n\n이 문제는 서브쿼리(WITH), JOIN, GROUP BY 단원을 씁니다.',
+    answerSql:
+      "WITH totals AS (SELECT o.customer_id, sum(oi.quantity * oi.unit_price) AS total FROM orders o JOIN order_items oi ON oi.order_id = o.id WHERE o.status <> 'cancelled' GROUP BY o.customer_id) SELECT c.name, t.total FROM totals t JOIN customers c ON c.id = t.customer_id WHERE t.total > (SELECT avg(total) FROM totals) ORDER BY t.total DESC",
+    answerNote: '고객별 합계를 WITH 로 한 번 만들어 두면 "평균" 과 "평균보다 큰 고객" 을 같은 결과에서 꺼낼 수 있습니다.',
+    alternatives: [
+      {
+        sql: "SELECT c.name, sum(oi.quantity * oi.unit_price) AS total FROM customers c JOIN orders o ON o.customer_id = c.id JOIN order_items oi ON oi.order_id = o.id WHERE o.status <> 'cancelled' GROUP BY c.id HAVING total > (SELECT avg(t) FROM (SELECT sum(oi2.quantity * oi2.unit_price) AS t FROM orders o2 JOIN order_items oi2 ON oi2.order_id = o2.id WHERE o2.status <> 'cancelled' GROUP BY o2.customer_id)) ORDER BY total DESC",
+        note: 'WITH 없이 HAVING 안에 FROM 절 서브쿼리를 넣은 방법입니다. 같은 집계를 두 번 적어야 해서 WITH 쪽이 읽기 쉽습니다.',
+      },
+    ],
+    hint: 'WITH totals AS (고객별 합계) 를 만들고, WHERE total > (SELECT avg(total) FROM totals).',
+    orderMatters: true,
+  },
+  {
+    id: 'p-mix-join-3',
+    lessonId: 'union',
+    mixes: ['union', 'left-join', 'subquery'],
+    title: '한 번도 없던 것들',
+    difficulty: 3,
+    description:
+      '두 목록을 **위아래로 합쳐** 조회하세요. 첫 번째는 **한 번도 주문되지 않은 상품** (종류 열에 `상품`), 두 번째는 **도서 카테고리 상품을 한 번도 산 적 없는 고객** (종류 열에 `고객`)입니다. 상품 목록이 먼저 옵니다.\n\n결과 열: ① 종류(상품/고객) ② 이름\n\n이 문제는 UNION, LEFT JOIN, 서브쿼리 단원을 씁니다.',
+    answerSql:
+      "SELECT '상품' AS kind, p.name FROM products p LEFT JOIN order_items oi ON oi.product_id = p.id WHERE oi.id IS NULL UNION ALL SELECT '고객', c.name FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o JOIN order_items oi ON oi.order_id = o.id JOIN products p ON p.id = oi.product_id WHERE o.customer_id = c.id AND p.category = '도서')",
+    answerNote: '"한 번도 없는" 은 LEFT JOIN … IS NULL 또는 NOT EXISTS 로 찾습니다. 두 목록은 겹칠 일이 없어 UNION ALL 을 썼습니다.',
+    alternatives: [
+      {
+        sql: "SELECT '상품', name FROM products WHERE id NOT IN (SELECT product_id FROM order_items) UNION ALL SELECT '고객', name FROM customers WHERE id NOT IN (SELECT o.customer_id FROM orders o JOIN order_items oi ON oi.order_id = o.id JOIN products p ON p.id = oi.product_id WHERE p.category = '도서')",
+        note: '둘 다 NOT IN 으로 쓴 방법입니다. 서브쿼리 결과에 NULL 이 섞이면 NOT IN 은 아무 행도 돌려주지 않으니, NULL 이 있을 수 있는 열에는 NOT EXISTS 가 안전합니다.',
+      },
+    ],
+    hint: "상품: LEFT JOIN order_items … WHERE oi.id IS NULL. 고객: NOT EXISTS (도서를 산 주문). 둘을 UNION ALL 로 잇고 종류 열은 '상품', '고객' 문자열.",
+  },
+
+  // ── 종합 문제 > 데이터 변경과 구조 (CREATE · INSERT · UPDATE · ALTER · 트랜잭션 · 뷰)
+  {
+    id: 'p-mix-modify-1',
+    lessonId: 'create-table',
+    mixes: ['create-table', 'insert'],
+    title: '품절 상품 보관 테이블',
+    difficulty: 2,
+    description:
+      '`sold_out` 테이블을 만들고 **재고가 0 인 상품** 을 옮겨 담으세요. 열은 `id`(정수, 기본키), `name`(문자열, NOT NULL), `category`(문자열, NOT NULL) 이고, 값은 `products` 에서 그대로 복사합니다.\n\n확인 쿼리는 `sold_out` 의 이름과 카테고리를 id 순으로 봅니다.\n\n이 문제는 CREATE TABLE, INSERT 단원을 씁니다.',
+    answerSql:
+      'CREATE TABLE sold_out (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL); INSERT INTO sold_out (id, name, category) SELECT id, name, category FROM products WHERE stock = 0',
+    answerNote: '조회 결과를 그대로 넣을 때는 `INSERT ... SELECT` 입니다. VALUES 로 값을 손으로 적으면 데이터가 바뀔 때 어긋납니다.',
+    hint: 'CREATE TABLE sold_out (...) 다음에 INSERT INTO sold_out (id, name, category) SELECT id, name, category FROM products WHERE stock = 0.',
+    checkSql: 'SELECT name, category FROM sold_out ORDER BY id',
+  },
+  {
+    id: 'p-mix-modify-2',
+    lessonId: 'transaction',
+    mixes: ['transaction', 'update-delete', 'insert', 'create-table'],
+    title: '도서 가격 인상과 변경 기록',
+    difficulty: 3,
+    description:
+      '도서 카테고리 상품의 가격을 **2,000원씩 올리면서** 변경 전후 가격을 기록으로 남기세요.\n\n1. `price_log` 테이블을 만듭니다: `product_id`(정수, NOT NULL, `products(id)` 참조), `old_price`(정수, NOT NULL), `new_price`(정수, NOT NULL).\n2. **하나의 트랜잭션 안에서** 도서 상품마다 (id, 현재 가격, 현재 가격 + 2000) 을 `price_log` 에 넣고, `products` 의 가격을 2,000원 올린 뒤 COMMIT 합니다.\n\n확인 쿼리는 기록과 현재 가격을 나란히 봅니다.\n\n이 문제는 트랜잭션, UPDATE, INSERT, CREATE TABLE 단원을 씁니다.',
+    answerSql:
+      "CREATE TABLE price_log (product_id INTEGER NOT NULL REFERENCES products(id), old_price INTEGER NOT NULL, new_price INTEGER NOT NULL); BEGIN; INSERT INTO price_log (product_id, old_price, new_price) SELECT id, price, price + 2000 FROM products WHERE category = '도서'; UPDATE products SET price = price + 2000 WHERE category = '도서'; COMMIT",
+    answerNote: '기록을 먼저 넣고 가격을 올려야 `old_price` 에 인상 전 가격이 남습니다. 순서를 바꾸면 둘 다 인상 후 가격이 됩니다.',
+    hint: "CREATE TABLE price_log (...); BEGIN; INSERT INTO price_log SELECT id, price, price + 2000 FROM products WHERE category = '도서'; UPDATE products SET price = price + 2000 WHERE category = '도서'; COMMIT;",
+    checkSql: 'SELECT l.product_id, l.old_price, l.new_price, p.price FROM price_log l JOIN products p ON p.id = l.product_id ORDER BY l.product_id',
+  },
+  {
+    id: 'p-mix-modify-3',
+    lessonId: 'alter-drop',
+    mixes: ['alter-drop', 'update-delete', 'view-index', 'subquery'],
+    title: 'VIP 등급 열과 뷰',
+    difficulty: 3,
+    description:
+      '고객 등급을 도입하세요.\n\n1. `customers` 에 `grade` 열을 추가합니다: 문자열, NOT NULL, 기본값 `일반`.\n2. **주문이 3건 이상인 고객** 의 등급을 `VIP` 로 바꿉니다.\n3. 이름과 등급만 보여 주는 `vip_customers` 뷰를 만듭니다. 등급이 VIP 인 고객만 들어갑니다.\n\n확인 쿼리는 `vip_customers` 를 이름 순으로 봅니다.\n\n이 문제는 ALTER TABLE, UPDATE, 뷰, 서브쿼리 단원을 씁니다.',
+    answerSql:
+      "ALTER TABLE customers ADD COLUMN grade TEXT NOT NULL DEFAULT '일반'; UPDATE customers SET grade = 'VIP' WHERE id IN (SELECT customer_id FROM orders GROUP BY customer_id HAVING count(*) >= 3); CREATE VIEW vip_customers AS SELECT name, grade FROM customers WHERE grade = 'VIP'",
+    answerNote: '행이 있는 테이블에 NOT NULL 열을 추가하려면 DEFAULT 가 필요합니다. 3건 이상인 고객은 GROUP BY … HAVING 서브쿼리로 고릅니다.',
+    hint: "ALTER TABLE customers ADD COLUMN grade TEXT NOT NULL DEFAULT '일반'; UPDATE ... WHERE id IN (SELECT customer_id FROM orders GROUP BY customer_id HAVING count(*) >= 3); CREATE VIEW vip_customers AS SELECT name, grade FROM customers WHERE grade = 'VIP';",
+    checkSql: 'SELECT * FROM vip_customers ORDER BY name',
+  },
+
+  // ── 종합 문제 > 한 걸음 더 (윈도우 함수 · 재귀 CTE · JOIN · GROUP BY)
+  {
+    id: 'p-mix-adv-1',
+    lessonId: 'window-functions',
+    mixes: ['window-functions', 'self-join-recursive', 'join'],
+    title: '부서 안 연봉 순위와 상사',
+    difficulty: 2,
+    description:
+      '부서가 있는 직원마다 **부서 이름, 이름, 직속 상사 이름, 연봉, 부서 안 연봉 순위** 를 조회하세요. 순위는 연봉이 높은 순으로 `rank()` 를 씁니다. 상사는 `manager_id` 가 가리키는 같은 테이블의 직원입니다. 부서 이름 순, 그 안에서 순위 순으로 정렬합니다.\n\n결과 열: ① 부서 이름 ② 직원 이름 ③ 상사 이름 ④ 연봉 ⑤ 부서 안 순위\n\n이 문제는 윈도우 함수, 자기 참조 JOIN, JOIN 단원을 씁니다.',
+    answerSql:
+      'SELECT d.name AS dept, e.name, m.name AS manager, e.salary, rank() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC) AS rnk FROM employees e JOIN departments d ON d.id = e.department_id JOIN employees m ON m.id = e.manager_id ORDER BY dept, rnk',
+    answerNote: '같은 테이블을 상사 역할(m)로 한 번 더 JOIN 하고, 순위는 윈도우 함수로 각 행 옆에 붙입니다. 부서가 있는 직원은 모두 상사가 있어 INNER JOIN 으로 충분합니다.',
+    hint: 'employees e JOIN departments d, JOIN employees m ON m.id = e.manager_id, 그리고 rank() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC).',
+    orderMatters: true,
+  },
+  {
+    id: 'p-mix-adv-2',
+    lessonId: 'self-join-recursive',
+    mixes: ['self-join-recursive', 'group-by', 'join'],
+    title: '조직 단계별 인원과 평균 연봉',
+    difficulty: 3,
+    description:
+      '대표를 0단계로 두고 `manager_id` 를 따라 내려가며 각 직원의 **조직 단계(depth)** 를 구한 뒤, **단계별 인원 수와 평균 연봉(정수 반올림)** 을 조회하세요. 단계 순으로 정렬합니다.\n\n결과 열: ① 단계(depth) ② 인원 수 ③ 평균 연봉\n\n이 문제는 재귀 CTE, GROUP BY, JOIN 단원을 씁니다.',
+    answerSql:
+      'WITH RECURSIVE org(id, depth) AS (SELECT id, 0 FROM employees WHERE manager_id IS NULL UNION ALL SELECT e.id, o.depth + 1 FROM employees e JOIN org o ON e.manager_id = o.id) SELECT o.depth, count(*) AS headcount, round(avg(e.salary)) AS avg_salary FROM org o JOIN employees e ON e.id = o.id GROUP BY o.depth ORDER BY o.depth',
+    answerNote: '재귀 CTE 로 (id, depth) 만 만들고, 연봉은 employees 와 다시 JOIN 해 가져옵니다. CTE 안에서 salary 까지 끌고 가도 됩니다.',
+    hint: 'WITH RECURSIVE org(id, depth) AS (대표 0 UNION ALL 직원 depth+1) 을 만든 뒤 employees 와 JOIN 해 GROUP BY depth.',
+  },
+  {
+    id: 'p-mix-adv-3',
+    lessonId: 'self-join-recursive',
+    mixes: ['self-join-recursive', 'group-by', 'join'],
+    title: '팀장별 전체 인원',
+    difficulty: 3,
+    description:
+      '대표(`manager_id` 가 NULL)의 **직속 부하** 를 팀장이라고 부릅니다. 팀장마다 **그 아래 전체 인원** (직속과 그 아래 단계까지 모두, 본인 제외)을 조회하세요. 인원이 많은 순, 같으면 이름 순으로 정렬합니다. 부하가 없는 팀장은 0 으로 나와야 합니다.\n\n결과 열: ① 팀장 이름 ② 아래 전체 인원\n\n이 문제는 재귀 CTE, GROUP BY, JOIN 단원을 씁니다.',
+    answerSql:
+      'WITH RECURSIVE t(root, id) AS (SELECT id, id FROM employees WHERE manager_id = (SELECT id FROM employees WHERE manager_id IS NULL) UNION ALL SELECT t.root, e.id FROM employees e JOIN t ON e.manager_id = t.id) SELECT m.name, count(*) - 1 AS total_reports FROM t JOIN employees m ON m.id = t.root GROUP BY t.root ORDER BY total_reports DESC, m.name',
+    answerNote: '재귀 CTE 에 "어느 팀장에서 출발했는지"(root)를 같이 끌고 가면 팀장 여러 명을 한 번에 셀 수 있습니다. 시작 행에 본인이 들어가므로 마지막에 1 을 뺍니다.',
+    hint: 'WITH RECURSIVE t(root, id) AS (팀장들: SELECT id, id … UNION ALL SELECT t.root, e.id …) 다음 GROUP BY t.root, count(*) - 1.',
+    orderMatters: true,
   },
 ]

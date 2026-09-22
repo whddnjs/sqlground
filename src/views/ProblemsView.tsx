@@ -24,13 +24,36 @@ import { useSettingsStore } from '../store/settings-store'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { routes } from '../routes'
 
-/** 단원 순서대로 문제를 묶는다. 문제가 없는 단원은 건너뛴다 */
-const GROUPS = CHAPTERS.map((c) => ({
-  chapter: c,
-  lessons: c.lessons.map((l) => ({ lesson: l, problems: PROBLEMS.filter((p) => p.lessonId === l.id) })).filter((x) => x.problems.length > 0),
-})).filter((g) => g.lessons.length > 0)
+const ALL_LESSONS = CHAPTERS.flatMap((c) => c.lessons)
+const lessonTitleOf = (id: string) => ALL_LESSONS.find((l) => l.id === id)?.title ?? ''
 
-const ORDERED: Problem[] = GROUPS.flatMap((g) => g.lessons.flatMap((l) => l.problems))
+interface Section {
+  id: string
+  title: string
+  /** 소묶음. 장이면 단원, 종합 문제 장이면 원래 장 */
+  groups: Array<{ id: string; title: string; problems: Problem[] }>
+}
+
+/** 목록 순서: 장마다 단원별 문제, 맨 끝에 "종합 문제" 장(그 안은 원래 장 이름으로 나눔). 문제가 없는 묶음은 건너뛴다 */
+const SECTIONS: Section[] = [
+  ...CHAPTERS.map((c) => ({
+    id: c.id,
+    title: c.title,
+    groups: c.lessons.map((l) => ({ id: l.id, title: l.title, problems: PROBLEMS.filter((p) => p.lessonId === l.id && !p.mixes) })),
+  })),
+  {
+    id: 'mixed',
+    title: '종합 문제',
+    groups: CHAPTERS.map((c) => {
+      const lessonIds = new Set(c.lessons.map((l) => l.id))
+      return { id: c.id, title: c.title, problems: PROBLEMS.filter((p) => p.mixes && lessonIds.has(p.lessonId)) }
+    }),
+  },
+]
+  .map((s) => ({ ...s, groups: s.groups.filter((g) => g.problems.length > 0) }))
+  .filter((s) => s.groups.length > 0)
+
+const ORDERED: Problem[] = SECTIONS.flatMap((s) => s.groups.flatMap((g) => g.problems))
 
 /** fromId 다음부터(끝에 닿으면 처음부터) 아직 안 푼 첫 문제. 다 풀었으면 null */
 function nextUnsolved(fromId: string, solved: string[]): Problem | null {
@@ -189,8 +212,7 @@ export function ProblemsView() {
     [engine, tables, current.id],
   )
 
-  const goLesson = () => navigate(routes.lesson(current.lessonId))
-  const lessonTitle = CHAPTERS.flatMap((c) => c.lessons).find((l) => l.id === current.lessonId)?.title ?? ''
+  const relatedLessons = current.mixes ?? [current.lessonId]
 
   if (!found) return <Navigate to={routes.problem(fallback.id)} replace />
 
@@ -198,55 +220,33 @@ export function ProblemsView() {
     <div className="flex h-full gap-2">
       <SideList open={menuOpen} onClose={() => setMenuOpen(false)} title="문제 목록">
         <nav aria-label="문제" className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {GROUPS.map((g) => (
-            <div key={g.chapter.id} className="mb-3">
-              <p className="section-label flex items-center px-2 pt-2 pb-1">
-                {g.chapter.title}
-                <ChapterCount solved={g.lessons.flatMap((l) => l.problems).filter((p) => solved.includes(p.id)).length} total={g.lessons.reduce((n, l) => n + l.problems.length, 0)} />
-              </p>
-              {g.lessons.map((l) => (
-                <ul key={l.lesson.id}>
-                  {l.problems.map((p) => {
-                    const active = p.id === current.id
-                    const done = solved.includes(p.id)
-                    return (
-                      <li key={p.id}>
-                        <button
-                          onClick={() => go(p.id)}
-                          className={[
-                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
-                            active ? 'bg-accent-soft font-medium text-accent-fg' : 'text-fg hover:bg-hover',
-                          ].join(' ')}
-                        >
-                          <span
-                            className={[
-                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px]',
-                              done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong',
-                            ].join(' ')}
-                          >
-                            {done && <Check size={10} />}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{p.title}</span>
-                          <Difficulty level={p.difficulty} />
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ))}
-            </div>
-          ))}
+          {SECTIONS.map((s) => {
+            const all = s.groups.flatMap((g) => g.problems)
+            return (
+              <div key={s.id} className="mb-3">
+                <p className="section-label flex items-center px-2 pt-2 pb-1">
+                  {s.title}
+                  <ChapterCount solved={all.filter((p) => solved.includes(p.id)).length} total={all.length} />
+                </p>
+                {s.groups.map((g) => (
+                  <ul key={g.id} aria-label={`${s.title} · ${g.title}`}>
+                    {/* 종합 문제 장은 원래 장 이름을 소제목으로 보여 준다 */}
+                    {s.id === 'mixed' && <li className="px-2 pt-2 pb-0.5 text-[11px] font-medium text-fg-muted">{g.title}</li>}
+                    {g.problems.map((p) => (
+                      <ProblemItem key={p.id} problem={p} active={p.id === current.id} done={solved.includes(p.id)} onClick={() => go(p.id)} />
+                    ))}
+                  </ul>
+                ))}
+              </div>
+            )
+          })}
         </nav>
         <div className="border-t border-line px-3 py-2 text-xs text-fg-muted">
           <div className="flex items-center gap-2">
             <span className="tabular-nums">
               {solved.length} / {ORDERED.length} 해결
             </span>
-            {nextTodo ? (
-              <button onClick={() => go(nextTodo.id)} title={`다음 안 푼 문제: ${nextTodo.title}`} className="btn btn-sm btn-ghost ml-auto -mr-1.5">
-                이어 풀기 <ChevronRight size={12} />
-              </button>
-            ) : (
+            {!nextTodo && (
               <span className="ml-auto flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <Trophy size={12} /> 모두 해결
               </span>
@@ -270,9 +270,15 @@ export function ProblemsView() {
             <span className="flex items-center gap-1">
               <Difficulty level={current.difficulty} /> {DIFFICULTY[current.difficulty]}
             </span>
-            <button onClick={goLesson} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-hover">
-              <BookOpen size={12} /> 관련 단원: {lessonTitle}
-            </button>
+            <span className="flex flex-wrap items-center gap-x-1">
+              <BookOpen size={12} /> 관련 단원:
+              {relatedLessons.map((id, i) => (
+                <button key={id} onClick={() => void navigate(routes.lesson(id))} className="rounded px-1 py-0.5 hover:bg-hover">
+                  {lessonTitleOf(id)}
+                  {i < relatedLessons.length - 1 && ','}
+                </button>
+              ))}
+            </span>
             <button
               onClick={() => void resetLessonEngine().then(applyEngine)}
               title="문제풀이용 DB 만 샘플 데이터 상태로 되돌립니다. 연습장의 내 작업은 그대로예요"
@@ -439,6 +445,31 @@ export function ProblemsView() {
         </div>
       </article>
     </div>
+  )
+}
+
+function ProblemItem({ problem, active, done, onClick }: { problem: Problem; active: boolean; done: boolean; onClick(): void }) {
+  return (
+    <li>
+      <button
+        onClick={onClick}
+        className={[
+          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
+          active ? 'bg-accent-soft font-medium text-accent-fg' : 'text-fg hover:bg-hover',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px]',
+            done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong',
+          ].join(' ')}
+        >
+          {done && <Check size={10} />}
+        </span>
+        <span className="min-w-0 flex-1 truncate">{problem.title}</span>
+        <Difficulty level={problem.difficulty} />
+      </button>
+    </li>
   )
 }
 

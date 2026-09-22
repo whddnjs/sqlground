@@ -7,8 +7,13 @@ export interface Alternative {
 
 export interface Problem {
   id: string
-  /** 연결된 학습 단원 id. 목록을 단원 순서로 묶고 "관련 단원 보기" 에 쓴다 */
+  /** 연결된 학습 단원 id. 목록을 단원 순서로 묶고 "관련 단원 보기" 에 쓴다. 종합 문제는 mixes 의 첫 단원 */
   lessonId: string
+  /**
+   * 종합 문제: 한 장의 여러 단원(2개 이상)을 섞어야 풀린다. 그 장의 끝 "종합" 묶음에 놓이고,
+   * 관련 단원 링크가 여기 적힌 단원 모두로 이어진다. 앞 장의 단원을 섞어도 된다
+   */
+  mixes?: string[]
   title: string
   /** 1 쉬움, 2 보통, 3 어려움 */
   difficulty: 1 | 2 | 3

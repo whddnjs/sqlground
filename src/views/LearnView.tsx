@@ -11,6 +11,7 @@ import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/
 import { searchLessons, type LessonHit } from '../learn/search'
 import type { Lesson } from '../learn/types'
 import { PROBLEMS } from '../problems/content'
+import type { Problem } from '../problems/types'
 import { useEditorStore } from '../store/editor-store'
 import { useLearnStore } from '../store/learn-store'
 import { useProblemStore } from '../store/problem-store'
@@ -69,7 +70,11 @@ export function LearnView() {
   const prev = ALL_LESSONS[index - 1]
   const next = ALL_LESSONS[index + 1]
   const done = completed.includes(shown.id)
-  const relatedProblems = PROBLEMS.filter((p) => p.lessonId === shown.id)
+  const relatedProblems = PROBLEMS.filter((p) => p.lessonId === shown.id && !p.mixes)
+  // 장의 마지막 단원이면 그 장의 종합 문제도 같이 보여 준다
+  const chapter = CHAPTERS.find((c) => c.lessons.includes(shown))!
+  const chapterLessonIds = new Set(chapter.lessons.map((l) => l.id))
+  const mixedProblems = chapter.lessons[chapter.lessons.length - 1] === shown ? PROBLEMS.filter((p) => p.mixes && chapterLessonIds.has(p.lessonId)) : []
   const go = (id: string) => {
     setMenuOpen(false)
     void navigate(routes.lesson(id))
@@ -185,33 +190,9 @@ export function LearnView() {
             </LessonDbContext.Provider>
           </div>
 
-          {relatedProblems.length > 0 && (
-            <section className="mt-10 rounded-md border border-line p-4">
-              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                <ListChecks size={15} /> 이 단원 문제 풀기
-              </h2>
-              <ul className="flex flex-col gap-1">
-                {relatedProblems.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      onClick={() => navigate(routes.problem(p.id))}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-hover"
-                    >
-                      <span
-                        className={[
-                          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-                          solved.includes(p.id) ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong',
-                        ].join(' ')}
-                      >
-                        {solved.includes(p.id) && <Check size={10} />}
-                      </span>
-                      <span className="flex-1">{p.title}</span>
-                      <span className="text-xs text-fg-subtle">{['', '쉬움', '보통', '어려움'][p.difficulty]}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {relatedProblems.length > 0 && <ProblemLinks title="이 단원 문제 풀기" problems={relatedProblems} solved={solved} onOpen={(id) => void navigate(routes.problem(id))} />}
+          {mixedProblems.length > 0 && (
+            <ProblemLinks title={`${chapter.title} 종합 문제`} description="이 장의 여러 단원을 섞어 푸는 문제입니다." problems={mixedProblems} solved={solved} onOpen={(id) => void navigate(routes.problem(id))} />
           )}
 
           <div className="mt-6 flex items-center gap-2 border-t border-line pt-4">
@@ -231,5 +212,34 @@ export function LearnView() {
         </div>
       </article>
     </div>
+  )
+}
+
+function ProblemLinks({ title, description, problems, solved, onOpen }: { title: string; description?: string; problems: Problem[]; solved: string[]; onOpen(id: string): void }) {
+  return (
+    <section className="mt-6 rounded-md border border-line p-4">
+      <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+        <ListChecks size={15} /> {title}
+      </h2>
+      {description && <p className="mb-2 text-xs text-fg-muted">{description}</p>}
+      <ul className="flex flex-col gap-1">
+        {problems.map((p) => (
+          <li key={p.id}>
+            <button onClick={() => onOpen(p.id)} className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-hover">
+              <span
+                className={[
+                  'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+                  solved.includes(p.id) ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong',
+                ].join(' ')}
+              >
+                {solved.includes(p.id) && <Check size={10} />}
+              </span>
+              <span className="flex-1">{p.title}</span>
+              <span className="text-xs text-fg-subtle">{['', '쉬움', '보통', '어려움'][p.difficulty]}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

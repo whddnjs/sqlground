@@ -38,10 +38,31 @@ describe('문제 콘텐츠', () => {
 
   it('단원마다 쉬운 문제부터 놓이고, 세 문제인 단원은 쉬움·보통·어려움이 하나씩이다', () => {
     for (const lesson of lessons) {
-      const levels = PROBLEMS.filter((p) => p.lessonId === lesson.id).map((p) => p.difficulty)
+      const levels = PROBLEMS.filter((p) => p.lessonId === lesson.id && !p.mixes).map((p) => p.difficulty)
       expect(levels, lesson.title).toEqual([...levels].sort())
       expect(levels.length, `${lesson.title}: 단원당 최대 3문제`).toBeLessThanOrEqual(3)
       if (levels.length === 3) expect(levels, lesson.title).toEqual([1, 2, 3])
+    }
+  })
+
+  it('종합 문제는 장마다 3문제, 보통 이상이며 그 장의 단원을 포함해 둘 이상 섞고 뒤 장의 단원은 쓰지 않는다', () => {
+    const chapterOf = new Map(CHAPTERS.flatMap((c, i) => c.lessons.map((l) => [l.id, i] as const)))
+    const mixed = PROBLEMS.filter((p) => p.mixes)
+    expect(mixed.length).toBeGreaterThan(0)
+    for (const p of mixed) {
+      expect(p.mixes![0], `${p.title}: lessonId 는 mixes 의 첫 단원`).toBe(p.lessonId)
+      expect(p.difficulty, `${p.title}: 종합 문제는 보통 이상`).toBeGreaterThanOrEqual(2)
+      expect(p.description, p.title).toContain('단원을 씁니다')
+      const chapter = chapterOf.get(p.lessonId)!
+      expect(p.mixes!.length, `${p.title}: 단원 2개 이상`).toBeGreaterThanOrEqual(2)
+      expect(new Set(p.mixes).size, `${p.title}: 단원이 겹침`).toBe(p.mixes!.length)
+      for (const id of p.mixes!) expect(chapterOf.get(id)!, `${p.title}: ${id} 는 뒤 장의 단원`).toBeLessThanOrEqual(chapter)
+    }
+    for (const [i, c] of CHAPTERS.entries()) {
+      const levels = mixed.filter((p) => chapterOf.get(p.lessonId) === i).map((p) => p.difficulty)
+      if (levels.length === 0) continue
+      expect(levels.length, `${c.title}: 종합 문제는 3개`).toBe(3)
+      expect(levels, c.title).toEqual([...levels].sort())
     }
   })
 
