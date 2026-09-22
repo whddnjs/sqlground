@@ -70,8 +70,12 @@ export default function App() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header onRun={() => void run(code)} onReset={handleReset} onLoadPreset={handleLoadPreset} onShowShortcuts={() => setShowShortcuts(true)} />
         <main className="relative min-h-0 flex-1 px-2 pb-2 md:pl-0">
-          {/* 한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 주소로 옮기면 다시 시도한다 */}
-          <ErrorBoundary key={pathname}>
+          {/*
+            한 화면이 깨져도 메뉴는 살아 있게 하고, 다른 화면으로 옮기면 다시 시도한다.
+            key 는 첫 경로 조각만 쓴다. 전체 주소를 쓰면 같은 화면 안에서 문제·단원을 옮길 때마다
+            화면이 새로 만들어져 목록 스크롤이 맨 위로 돌아간다
+          */}
+          <ErrorBoundary key={pathname.split('/')[1] ?? ''}>
             <Suspense fallback={<Centered>불러오는 중…</Centered>}>
               <Routes>
                 <Route path={routes.playground} element={<PlaygroundView />} />

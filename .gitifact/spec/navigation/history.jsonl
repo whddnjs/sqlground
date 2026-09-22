@@ -1,1 +1,2 @@
 {"id":"H-s47lucrcr3","requirements":["R-deywsidxcj"],"reason":"화면 전환을 상태값으로만 처리해 뒤로 가기가 사이트를 벗어나고 단원·문제 링크를 공유할 수 없었다. react-router 로 화면·단원·문제마다 주소를 둔다"}
+{"id":"H-uu5zqbsu6e","requirements":[],"designs":["S-4wg7gb5fn7"],"reason":"사용자 보고: 문제를 풀고 다음 문제를 누르면 목록 스크롤이 위로 올라감. 원인은 라우팅 도입 때 넣은 바운더리 key=pathname 이라 설계에 key 규칙을 적음"}

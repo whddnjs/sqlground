@@ -235,6 +235,23 @@ test.describe('주소와 이동', () => {
     await expect(page).toHaveURL(/\/problems\/p-leftjoin-1$/)
   })
 
+  test('다음 문제로 옮겨도 문제 목록 스크롤이 맨 위로 돌아가지 않고 현재 문제가 보인다', async ({ page }) => {
+    await page.goto('/problems/p-join-4')
+    await expect(page.getByRole('heading', { level: 1, name: '주문마다 고객 이름 붙이기' })).toBeVisible()
+    const nav = page.getByRole('navigation', { name: '문제' })
+    // 목록 중간의 문제라 열자마자 그 자리까지 스크롤돼 있다
+    await expect.poll(() => nav.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+    const before = await nav.evaluate((el) => el.scrollTop)
+
+    await page.getByRole('button', { name: /^주문과 고객 이름/ }).last().click()
+    await expect(page.getByRole('heading', { level: 1, name: '주문과 고객 이름' })).toBeVisible()
+    expect(await nav.evaluate((el) => el.scrollTop)).toBeGreaterThanOrEqual(before)
+    const item = nav.getByRole('button', { name: /^주문과 고객 이름/ })
+    const [navBox, itemBox] = [await nav.boundingBox(), await item.boundingBox()]
+    expect(itemBox!.y).toBeGreaterThanOrEqual(navBox!.y)
+    expect(itemBox!.y + itemBox!.height).toBeLessThanOrEqual(navBox!.y + navBox!.height)
+  })
+
   test('문제에서 관련 단원으로 갔다가 뒤로 가기를 누르면 문제로 돌아온다', async ({ page }) => {
     await page.goto('/problems/p-join-1')
     // 관련 단원은 단원 이름 버튼 목록이다

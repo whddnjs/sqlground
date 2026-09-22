@@ -19,6 +19,8 @@ import { Navigate, useNavigate, useParams } from 'react-router'
 import { routes } from '../routes'
 
 const ALL_LESSONS: Lesson[] = CHAPTERS.flatMap((c) => c.lessons)
+/** 현재 단원 항목이 목록 밖에 있으면 그 자리까지만 스크롤한다 (ref 콜백) */
+const scrollActiveIntoView = (el: HTMLLIElement | null) => el?.scrollIntoView({ block: 'nearest' })
 // 본문의 | 표 | 는 GFM 문법이라 플러그인이 있어야 표로 그려진다. components 처럼 상수로 고정한다
 const REMARK_PLUGINS = [remarkGfm]
 
@@ -135,7 +137,7 @@ export function LearnView() {
                 {c.hits.map(({ lesson: l, snippet }) => {
                   const active = l.id === shown.id
                   return (
-                    <li key={l.id}>
+                    <li key={l.id} ref={active ? scrollActiveIntoView : undefined}>
                       <button
                         onClick={() => go(l.id)}
                         className={[

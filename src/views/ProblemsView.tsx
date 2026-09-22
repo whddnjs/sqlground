@@ -449,8 +449,13 @@ export function ProblemsView() {
 }
 
 function ProblemItem({ problem, active, done, onClick }: { problem: Problem; active: boolean; done: boolean; onClick(): void }) {
+  const ref = useRef<HTMLLIElement>(null)
+  // 다음 문제로 옮겼을 때 목록에서 보이지 않으면 그 자리까지만 스크롤한다 (목록 전체를 위로 되감지 않는다)
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [active])
   return (
-    <li>
+    <li ref={ref}>
       <button
         onClick={onClick}
         className={[
