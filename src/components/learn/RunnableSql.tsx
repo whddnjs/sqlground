@@ -5,7 +5,7 @@ import { ExternalLink, Pencil, Play, RotateCcw, Square } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import type { ExecOutcome } from '../../db/engine'
 import { useLessonDb } from '../../learn/lesson-db-context'
-import { sqlExtensions } from '../../lib/editor-schema'
+import { editorLabel, sqlExtensions } from '../../lib/editor-schema'
 import { explainSqlError } from '../../lib/error-messages'
 import { useSettingsStore } from '../../store/settings-store'
 import { ResultGrid } from '../result/ResultGrid'
@@ -41,6 +41,7 @@ export function RunnableSql({ initialSql }: Props) {
   const extensions = useMemo(
     () => [
       ...sqlExtensions(tables),
+      editorLabel('예제 SQL'),
       Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (run(), true) }, { key: 'Ctrl-Enter', run: () => (run(), true) }])),
     ],
     // run 은 ref 만 읽는다. 스키마가 바뀌면 자동완성 갱신을 위해 다시 만든다

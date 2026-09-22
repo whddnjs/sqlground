@@ -1,11 +1,14 @@
-import { Check, ChevronLeft, ChevronRight, ListChecks, RotateCcw, Search } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ListChecks, Menu, RotateCcw, Search } from 'lucide-react'
+import { SideList } from '../components/layout/SideList'
 import { useEffect, useMemo, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { RunnableSql } from '../components/learn/RunnableSql'
 import type { AsyncDbEngine, ExecOutcome, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { LessonDbContext } from '../learn/lesson-db-context'
 import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
+import { searchLessons, type LessonHit } from '../learn/search'
 import type { Lesson } from '../learn/types'
 import { PROBLEMS } from '../problems/content'
 import { useEditorStore } from '../store/editor-store'
@@ -15,6 +18,8 @@ import { Navigate, useNavigate, useParams } from 'react-router'
 import { routes } from '../routes'
 
 const ALL_LESSONS: Lesson[] = CHAPTERS.flatMap((c) => c.lessons)
+// 본문의 | 표 | 는 GFM 문법이라 플러그인이 있어야 표로 그려진다. components 처럼 상수로 고정한다
+const REMARK_PLUGINS = [remarkGfm]
 
 const schemaKey = (tables: TableInfo[]) => tables.map((t) => `${t.name}(${t.columns.map((c) => c.name).join(',')})`).join(';')
 
@@ -39,6 +44,8 @@ export function LearnView() {
   const { lessonId } = useParams()
   const solved = useProblemStore((s) => s.solved)
   const [query, setQuery] = useState('')
+  // 폰 폭에서 단원 목록을 열었는지
+  const [menuOpen, setMenuOpen] = useState(false)
   const [engine, setEngine] = useState<AsyncDbEngine | null>(null)
   const [engineVersion, setEngineVersion] = useState(0)
   // 자동완성용 테이블 목록. 예제 실행으로 구조가 바뀌면 갱신
@@ -63,18 +70,16 @@ export function LearnView() {
   const next = ALL_LESSONS[index + 1]
   const done = completed.includes(shown.id)
   const relatedProblems = PROBLEMS.filter((p) => p.lessonId === shown.id)
-  const go = (id: string) => navigate(routes.lesson(id))
+  const go = (id: string) => {
+    setMenuOpen(false)
+    void navigate(routes.lesson(id))
+  }
 
-  const q = query.trim().toLowerCase()
+  // 제목·키워드·본문을 찾는다. 본문에서만 맞은 단원은 맞은 곳을 한 줄 보여 준다
   const visibleChapters = useMemo(
     () =>
-      q === ''
-        ? CHAPTERS
-        : CHAPTERS.map((c) => ({
-            ...c,
-            lessons: c.lessons.filter((l) => l.title.toLowerCase().includes(q) || l.keywords.some((k) => k.toLowerCase().includes(q))),
-          })).filter((c) => c.lessons.length > 0),
-    [q],
+      CHAPTERS.map((c) => ({ id: c.id, title: c.title, hits: searchLessons(c.lessons, query) as LessonHit[] })).filter((c) => c.hits.length > 0),
+    [query],
   )
 
   // 데이터를 바꾸는 예제를 실행한 적이 있는지. 되돌리기 버튼을 강조하는 데 쓴다
@@ -107,22 +112,22 @@ export function LearnView() {
 
   return (
     <div className="flex h-full gap-2">
-      <aside className="card flex w-64 shrink-0 flex-col overflow-hidden">
+      <SideList open={menuOpen} onClose={() => setMenuOpen(false)} title="단원 목록">
         <div className="relative p-2">
           <Search size={14} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-fg-subtle" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="문법 찾기 (예: JOIN, NULL)"
+            placeholder="찾기 (예: JOIN, 페이징, 만 나이)"
             className="input pl-7"
           />
         </div>
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        <nav aria-label="단원" className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {visibleChapters.map((c) => (
             <div key={c.id} className="mb-3">
               <p className="section-label px-2 pt-2 pb-1">{c.title}</p>
               <ul>
-                {c.lessons.map((l) => {
+                {c.hits.map(({ lesson: l, snippet }) => {
                   const active = l.id === shown.id
                   return (
                     <li key={l.id}>
@@ -136,7 +141,10 @@ export function LearnView() {
                         <span className={['flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px]', completed.includes(l.id) ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-line-strong'].join(' ')}>
                           {completed.includes(l.id) && <Check size={10} />}
                         </span>
-                        <span className="truncate">{l.title}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{l.title}</span>
+                          {snippet && <span className="block truncate text-[11px] font-normal text-fg-subtle">{snippet}</span>}
+                        </span>
                       </button>
                     </li>
                   )
@@ -149,11 +157,14 @@ export function LearnView() {
         <div className="border-t border-line px-3 py-2 text-xs text-fg-muted tabular-nums">
           {completed.length} / {ALL_LESSONS.length} 완료
         </div>
-      </aside>
+      </SideList>
 
       <article className="card min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-8 py-6">
-          <div className="mb-4 flex items-center gap-2 text-xs text-fg-muted">
+        <div className="mx-auto max-w-3xl px-4 py-4 md:px-8 md:py-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+            <button onClick={() => setMenuOpen(true)} className="btn btn-sm btn-ghost md:hidden">
+              <Menu size={13} /> 단원 목록
+            </button>
             <span>
               {index + 1} / {ALL_LESSONS.length}
             </span>
@@ -166,11 +177,11 @@ export function LearnView() {
               {dirty && <span className="ml-0.5 text-[10px] font-normal">· 데이터가 바뀌었어요</span>}
             </button>
           </div>
-          <h1 className="mb-5 text-[26px] font-bold tracking-tight">{shown.title}</h1>
+          <h1 className="mb-5 text-[22px] font-bold tracking-tight md:text-[26px]">{shown.title}</h1>
 
           <div key={`${shown.id}-${engineVersion}`} className="lesson-body">
             <LessonDbContext.Provider value={{ tables, run, cancel: () => engine?.cancel(), openInPlayground }}>
-              <Markdown components={MARKDOWN_COMPONENTS}>{shown.body}</Markdown>
+              <Markdown components={MARKDOWN_COMPONENTS} remarkPlugins={REMARK_PLUGINS}>{shown.body}</Markdown>
             </LessonDbContext.Provider>
           </div>
 

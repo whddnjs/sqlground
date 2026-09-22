@@ -19,16 +19,16 @@ const BOTTOM: Item[] = [{ to: routes.settings, label: '설정', icon: Settings }
 
 export function NavRail() {
   return (
-    <nav className="flex w-[68px] shrink-0 flex-col items-center pb-2">
-      <div className="flex h-12 items-center justify-center">
+    <nav aria-label="주 메뉴" className="order-last flex shrink-0 items-center border-t border-line bg-surface md:order-none md:w-[68px] md:flex-col md:border-0 md:bg-transparent md:pb-2">
+      <div className="hidden h-12 items-center justify-center md:flex">
         <Logo />
       </div>
-      <ul className="mt-1 flex flex-col gap-1">
+      <ul className="flex flex-1 justify-around gap-1 md:mt-1 md:flex-none md:flex-col">
         {MAIN.map((item) => (
           <NavButton key={item.to} item={item} />
         ))}
       </ul>
-      <ul className="mt-auto flex flex-col gap-1">
+      <ul className="flex gap-1 md:mt-auto md:flex-col">
         {BOTTOM.map((item) => (
           <NavButton key={item.to} item={item} />
         ))}
@@ -47,14 +47,14 @@ function NavButton({ item }: { item: Item }) {
         end={item.to === routes.playground}
         className={({ isActive }) =>
           [
-            'relative flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10.5px] font-medium transition-colors',
+            'relative flex w-14 flex-col items-center gap-1 rounded-lg py-1.5 text-[10.5px] font-medium transition-colors md:py-2',
             isActive ? 'bg-surface text-accent-fg shadow-panel' : 'text-fg-muted hover:bg-hover hover:text-fg',
           ].join(' ')
         }
       >
         {({ isActive }) => (
           <>
-            {isActive && <span className="absolute top-2.5 bottom-2.5 -left-1.5 w-[3px] rounded-full bg-accent" />}
+            {isActive && <span className="absolute top-2.5 bottom-2.5 -left-1.5 hidden w-[3px] rounded-full bg-accent md:block" />}
             <Icon size={19} strokeWidth={isActive ? 2 : 1.7} />
             <span>{item.label}</span>
           </>

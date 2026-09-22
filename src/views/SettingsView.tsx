@@ -1,8 +1,14 @@
-import { Download, Monitor, Moon, Sun, Upload } from 'lucide-react'
+import { Download, Monitor, Moon, RotateCcw, Sun, Upload } from 'lucide-react'
 import { useRef } from 'react'
 import { alert, confirm } from '../store/confirm-store'
 import { useDbStore } from '../store/db-store'
 import { useSettingsStore, type Theme } from '../store/settings-store'
+import { useLearnStore } from '../store/learn-store'
+import { useProblemStore } from '../store/problem-store'
+import { CHAPTERS } from '../learn/content'
+import { PROBLEMS } from '../problems/content'
+
+const LESSON_COUNT = CHAPTERS.reduce((n, c) => n + c.lessons.length, 0)
 
 const THEMES: Array<{ value: Theme; label: string; icon: React.ReactNode }> = [
   { value: 'system', label: '시스템', icon: <Monitor size={14} /> },
@@ -14,6 +20,25 @@ export function SettingsView() {
   const { theme, fontSize, foreignKeys, ligatures, update } = useSettingsStore()
   const { exportDb, importDb, setForeignKeys, tables } = useDbStore()
   const fileRef = useRef<HTMLInputElement>(null)
+  const completed = useLearnStore((s) => s.completed.length)
+  const resetLearn = useLearnStore((s) => s.reset)
+  const solved = useProblemStore((s) => s.solved.length)
+  const drafts = useProblemStore((s) => Object.keys(s.drafts).length)
+  const resetProblems = useProblemStore((s) => s.reset)
+
+  const clearLearn = async () => {
+    const ok = await confirm({ title: '학습 완료 표시를 모두 지울까요?', message: `${completed}개 단원의 완료 표시가 지워집니다. 단원 본문은 그대로입니다.`, confirmLabel: '초기화', danger: true })
+    if (ok) resetLearn()
+  }
+  const clearProblems = async () => {
+    const ok = await confirm({
+      title: '문제 해결 기록을 모두 지울까요?',
+      message: `${solved}개 문제의 해결 표시와 작성해 둔 답안${drafts > 0 ? ` ${drafts}개` : ''}이 지워집니다. 처음부터 다시 풀 수 있습니다.`,
+      confirmLabel: '초기화',
+      danger: true,
+    })
+    if (ok) resetProblems()
+  }
 
   const download = async () => {
     const blob = new Blob([(await exportDb()) as BlobPart], { type: 'application/x-sqlite3' })
@@ -73,10 +98,10 @@ export function SettingsView() {
 
       <Section title="에디터" description="SQL 에디터의 글꼴 크기입니다.">
         <div className="flex items-center gap-3">
-          <input type="range" min={11} max={22} value={fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })} className="flex-1 accent-(--color-accent)" />
+          <input type="range" aria-label="에디터 글꼴 크기" min={11} max={22} value={fontSize} onChange={(e) => update({ fontSize: Number(e.target.value) })} className="flex-1 accent-(--color-accent)" />
           <span className="w-12 text-right text-sm tabular-nums">{fontSize}px</span>
         </div>
-        <pre className="mt-2 rounded bg-subtle p-2 font-mono" style={{ fontSize }}>
+        <pre className="mt-2 overflow-x-auto rounded bg-subtle p-2 font-mono" style={{ fontSize }}>
           SELECT name FROM users WHERE age &gt;= 20 AND city &lt;&gt; 'x';
         </pre>
         <label className="mt-4 flex items-start gap-2 text-sm">
@@ -119,6 +144,17 @@ export function SettingsView() {
         <p className="mt-2 text-xs text-fg-muted">
           내보낸 파일은 DB Browser for SQLite 같은 다른 도구에서도 열립니다. 컬럼 한글 설명은 파일에 포함되지 않습니다.
         </p>
+      </Section>
+
+      <Section title="진행 기록" description="학습 완료 표시와 문제 해결 기록은 이 브라우저에만 저장됩니다. 지우면 되돌릴 수 없습니다.">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => void clearLearn()} disabled={completed === 0} className="btn btn-outline">
+            <RotateCcw size={14} /> 학습 완료 표시 초기화 <span className="text-fg-muted tabular-nums">({completed} / {LESSON_COUNT} 완료)</span>
+          </button>
+          <button onClick={() => void clearProblems()} disabled={solved === 0 && drafts === 0} className="btn btn-outline">
+            <RotateCcw size={14} /> 문제 해결 기록 초기화 <span className="text-fg-muted tabular-nums">({solved} / {PROBLEMS.length} 해결)</span>
+          </button>
+        </div>
       </Section>
     </div>
     </div>

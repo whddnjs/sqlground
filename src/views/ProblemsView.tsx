@@ -1,9 +1,10 @@
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
 import CodeMirror from '@uiw/react-codemirror'
-import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Eye, GraduationCap, Lightbulb, Play, RotateCcw, Send, Square, Target, TerminalSquare } from 'lucide-react'
+import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Eye, GraduationCap, Lightbulb, Menu, Play, RotateCcw, Send, Square, Target, TerminalSquare, Trophy } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
+import { SideList } from '../components/layout/SideList'
 import { ExpectedResult } from '../components/problems/ExpectedResult'
 import { ProblemContext } from '../components/problems/ProblemContext'
 import { SectionPanel } from '../components/problems/SectionPanel'
@@ -12,7 +13,7 @@ import { ResultGrid } from '../components/result/ResultGrid'
 import type { AsyncDbEngine, ExecOutcome, QueryResult, TableInfo } from '../db/engine'
 import { CHAPTERS } from '../learn/content'
 import { LESSON_TIMEOUT_MS, getLessonEngine, resetLessonEngine } from '../learn/lesson-engine'
-import { sqlExtensions } from '../lib/editor-schema'
+import { editorLabel, sqlExtensions } from '../lib/editor-schema'
 import { explainSqlError } from '../lib/error-messages'
 import { PROBLEMS } from '../problems/content'
 import { expectedMeta, lastQueryResult, loadTablePreviews, relatedTables, type TablePreview } from '../problems/context'
@@ -30,6 +31,16 @@ const GROUPS = CHAPTERS.map((c) => ({
 })).filter((g) => g.lessons.length > 0)
 
 const ORDERED: Problem[] = GROUPS.flatMap((g) => g.lessons.flatMap((l) => l.problems))
+
+/** fromId 다음부터(끝에 닿으면 처음부터) 아직 안 푼 첫 문제. 다 풀었으면 null */
+function nextUnsolved(fromId: string, solved: string[]): Problem | null {
+  const start = ORDERED.findIndex((p) => p.id === fromId) + 1
+  for (let i = 0; i < ORDERED.length; i++) {
+    const p = ORDERED[(start + i) % ORDERED.length]
+    if (!solved.includes(p.id)) return p
+  }
+  return null
+}
 const DIFFICULTY = { 1: '쉬움', 2: '보통', 3: '어려움' } as const
 
 export function ProblemsView() {
@@ -45,11 +56,17 @@ export function ProblemsView() {
   useEffect(() => {
     if (found) select(found.id)
   }, [found, select])
-  const go = (id: string) => navigate(routes.problem(id))
+  // 폰 폭에서 문제 목록을 열었는지
+  const [menuOpen, setMenuOpen] = useState(false)
+  const go = (id: string) => {
+    setMenuOpen(false)
+    void navigate(routes.problem(id))
+  }
   const index = ORDERED.indexOf(current)
   const prev = ORDERED[index - 1]
   const next = ORDERED[index + 1]
   const isSolved = solved.includes(current.id)
+  const nextTodo = nextUnsolved(current.id, solved)
 
   const [engine, setEngine] = useState<AsyncDbEngine | null>(null)
   const [running, setRunning] = useState(false)
@@ -164,6 +181,7 @@ export function ProblemsView() {
   const extensions = useMemo(
     () => [
       ...sqlExtensions(tables),
+      editorLabel('답안 SQL'),
       Prec.highest(keymap.of([{ key: 'Mod-Enter', run: () => (void run(), true) }, { key: 'Ctrl-Enter', run: () => (void run(), true) }])),
     ],
     // run 은 ref 와 현재 문제를 읽는다. 스키마나 문제가 바뀌면 다시 만든다
@@ -178,11 +196,14 @@ export function ProblemsView() {
 
   return (
     <div className="flex h-full gap-2">
-      <aside className="card flex w-64 shrink-0 flex-col overflow-hidden">
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <SideList open={menuOpen} onClose={() => setMenuOpen(false)} title="문제 목록">
+        <nav aria-label="문제" className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {GROUPS.map((g) => (
             <div key={g.chapter.id} className="mb-3">
-              <p className="section-label px-2 pt-2 pb-1">{g.chapter.title}</p>
+              <p className="section-label flex items-center px-2 pt-2 pb-1">
+                {g.chapter.title}
+                <ChapterCount solved={g.lessons.flatMap((l) => l.problems).filter((p) => solved.includes(p.id)).length} total={g.lessons.reduce((n, l) => n + l.problems.length, 0)} />
+              </p>
               {g.lessons.map((l) => (
                 <ul key={l.lesson.id}>
                   {l.problems.map((p) => {
@@ -216,14 +237,33 @@ export function ProblemsView() {
             </div>
           ))}
         </nav>
-        <div className="border-t border-line px-3 py-2 text-xs text-fg-muted tabular-nums">
-          {solved.length} / {ORDERED.length} 해결
+        <div className="border-t border-line px-3 py-2 text-xs text-fg-muted">
+          <div className="flex items-center gap-2">
+            <span className="tabular-nums">
+              {solved.length} / {ORDERED.length} 해결
+            </span>
+            {nextTodo ? (
+              <button onClick={() => go(nextTodo.id)} title={`다음 안 푼 문제: ${nextTodo.title}`} className="btn btn-sm btn-ghost ml-auto -mr-1.5">
+                이어 풀기 <ChevronRight size={12} />
+              </button>
+            ) : (
+              <span className="ml-auto flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Trophy size={12} /> 모두 해결
+              </span>
+            )}
+          </div>
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-hover" role="progressbar" aria-label="문제 해결 진행도" aria-valuemin={0} aria-valuemax={ORDERED.length} aria-valuenow={solved.length}>
+            <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${(solved.length / ORDERED.length) * 100}%` }} />
+          </div>
         </div>
-      </aside>
+      </SideList>
 
       <article className="card min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-8 py-6">
-          <div className="mb-3 flex items-center gap-3 text-xs text-fg-muted">
+        <div className="mx-auto max-w-3xl px-4 py-4 md:px-8 md:py-6">
+          <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-fg-muted">
+            <button onClick={() => setMenuOpen(true)} className="btn btn-sm btn-ghost md:hidden">
+              <Menu size={13} /> 문제 목록
+            </button>
             <span>
               {index + 1} / {ORDERED.length}
             </span>
@@ -242,7 +282,7 @@ export function ProblemsView() {
             </button>
           </div>
 
-          <h1 className="mb-3 flex items-center gap-2 text-[26px] font-bold tracking-tight">
+          <h1 className="mb-3 flex items-center gap-2 text-[22px] font-bold tracking-tight md:text-[26px]">
             {current.title}
             {isSolved && <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">해결</span>}
           </h1>
@@ -285,7 +325,7 @@ export function ProblemsView() {
               basicSetup={{ foldGutter: false, highlightActiveLine: false }}
               style={{ fontSize }}
             />
-            <div className="flex items-center gap-1 border-t border-line bg-subtle/60 px-2 py-1.5">
+            <div className="flex flex-wrap items-center gap-1 border-t border-line bg-subtle/60 px-2 py-1.5">
               {running ? (
                 <button onClick={() => engine?.cancel()} className="btn btn-sm btn-danger">
                   <Square size={11} /> 중단
@@ -298,7 +338,7 @@ export function ProblemsView() {
               <button disabled={running || !contextReady} onClick={() => void submit()} className="btn btn-sm btn-primary">
                 <Send size={12} /> 제출
               </button>
-              <button onClick={() => patch({ showHint: !showHint })} aria-pressed={showHint} className={['btn btn-sm ml-auto', showHint ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'btn-ghost'].join(' ')}>
+              <button onClick={() => patch({ showHint: !showHint })} aria-pressed={showHint} className={['btn btn-sm ml-auto', showHint ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300' : 'btn-ghost'].join(' ')}>
                 <Lightbulb size={12} /> 힌트
               </button>
               <button
@@ -343,7 +383,19 @@ export function ProblemsView() {
               >
                 <div className="flex flex-col gap-3 text-sm">
                   {verdict && (
-                    <p className={['text-[13px] font-medium', verdict.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'].join(' ')}>{verdict.message}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={['text-[13px] font-medium', verdict.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'].join(' ')}>{verdict.message}</p>
+                      {verdict.ok && nextTodo && (
+                        <button onClick={() => go(nextTodo.id)} className="btn btn-sm btn-primary ml-auto">
+                          다음 문제: {nextTodo.title} <ChevronRight size={12} />
+                        </button>
+                      )}
+                      {verdict.ok && !nextTodo && (
+                        <span className="ml-auto flex items-center gap-1 text-[12px] text-emerald-700 dark:text-emerald-300">
+                          <Trophy size={12} /> 모든 문제를 풀었어요!
+                        </span>
+                      )}
+                    </div>
                   )}
                   {outcome.results.map((r, i) =>
                     r.columns.length > 0 ? <ResultGrid key={i} result={r} /> : <p key={i} className="text-xs text-fg-muted">실행 완료 · {r.rowsAffected}행 영향</p>,
@@ -387,6 +439,14 @@ export function ProblemsView() {
         </div>
       </article>
     </div>
+  )
+}
+
+function ChapterCount({ solved, total }: { solved: number; total: number }) {
+  return (
+    <span className={['ml-auto font-normal tabular-nums', solved === total ? 'text-emerald-600 dark:text-emerald-400' : 'text-fg-subtle'].join(' ')}>
+      {solved}/{total}
+    </span>
   )
 }
 

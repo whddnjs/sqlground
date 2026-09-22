@@ -19,6 +19,8 @@ const persist = (s: Saved) => writeJson(KEY, s)
 interface LearnState extends Saved {
   select(lessonId: string): void
   toggleCompleted(lessonId: string): void
+  /** 완료 표시와 마지막 단원 위치를 지운다 (설정의 진행 기록 초기화) */
+  reset(): void
 }
 
 export const useLearnStore = create<LearnState>((set, get) => ({
@@ -32,6 +34,11 @@ export const useLearnStore = create<LearnState>((set, get) => ({
     const has = get().completed.includes(lessonId)
     const completed = has ? get().completed.filter((id) => id !== lessonId) : [...get().completed, lessonId]
     const next = { completed, lastLesson: get().lastLesson }
+    persist(next)
+    set(next)
+  },
+  reset() {
+    const next = { completed: [], lastLesson: null }
     persist(next)
     set(next)
   },

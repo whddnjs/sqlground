@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { useIsNarrow } from '../lib/use-media'
 import { EditorTabs } from '../components/editor/EditorTabs'
 import { SqlEditor } from '../components/editor/SqlEditor'
 import { AlterTableDialog } from '../components/forms/AlterTableDialog'
@@ -60,10 +61,13 @@ export function PlaygroundView() {
     )
   }
 
+  const narrow = useIsNarrow()
+
   return (
     <>
-      <Group orientation="horizontal" className="h-full">
-        <Panel defaultSize="23%" minSize="14%" className="card overflow-hidden">
+      {narrow && <p className="mb-1.5 text-center text-[11px] text-fg-subtle">연습장은 넓은 화면에서 쓰기 좋습니다</p>}
+      <Group key={narrow ? 'v' : 'h'} orientation={narrow ? 'vertical' : 'horizontal'} className={narrow ? 'h-[calc(100%-1.5rem)]' : 'h-full'}>
+        <Panel defaultSize={narrow ? '30%' : '23%'} minSize="14%" className="card overflow-hidden">
           <SchemaBrowser
             tables={tables}
             onCreateTable={() => setDialog({ type: 'create' })}
@@ -74,7 +78,7 @@ export function PlaygroundView() {
             onShowErd={() => setShowErd(true)}
           />
         </Panel>
-        <Separator className="resize-handle w-2" />
+        <Separator className={narrow ? 'resize-handle h-2' : 'resize-handle w-2'} />
         <Panel>
           <Group orientation="vertical">
             <Panel defaultSize="45%" minSize="20%" className="card flex flex-col overflow-hidden">

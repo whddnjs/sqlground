@@ -6,11 +6,22 @@ export async function openApp(page: Page) {
   await expect(page.getByRole('button', { name: '실행', exact: true })).toBeVisible()
 }
 
-/** 화면의 n번째 SQL 에디터 내용을 통째로 바꾼다 */
+/**
+ * 화면의 n번째 SQL 에디터 내용을 통째로 바꾼다.
+ * 에디터가 막 만들어진 직후(다른 테스트와 함께 돌아 느릴 때)에는 입력이 React 상태로 이어지기 전에
+ * 원래 값으로 되돌아가는 일이 있어, 내용이 남았는지 확인하고 아니면 다시 채운다.
+ */
 export async function setEditor(page: Page, sql: string, nth = 0) {
-  await page.locator('.cm-content').nth(nth).fill(sql)
-  // 자동완성 팝업이 떠 있으면 닫는다
-  await page.keyboard.press('Escape')
+  const editor = page.locator('.cm-content').nth(nth)
+  const head = sql.replace(/\s+/g, ' ').slice(0, 24)
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await editor.fill(sql)
+    // 자동완성 팝업이 떠 있으면 닫는다
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+    if ((await editor.innerText()).replace(/\s+/g, ' ').includes(head)) return
+  }
+  throw new Error(`에디터에 입력이 남지 않습니다: ${head}`)
 }
 
 export async function runInPlayground(page: Page, sql: string) {

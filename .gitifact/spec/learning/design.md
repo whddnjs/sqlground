@@ -19,6 +19,13 @@
 - 예제 실행 → 컨텍스트 `run()` → `{ outcome, changed }` → changed 면 블록 안내 + 화면 `dirty`.
 - 되돌리기 → 학습용 엔진 reset + 샘플 재로드 + `checkpoint()` → dirty 해제 → 예제 블록 key 갱신으로 결과 초기화.
 
+## 단원 검색
+
+<!-- gitifact-ref: R-62t33fg5ql -->
+
+- `learn/search.ts` 의 `searchLessons(lessons, query)` 가 제목·키워드 → 본문 순으로 맞춘다. 본문은 코드 블록과 마크다운 기호를 걷어낸 글(`plain`)에서 찾고, 맞은 곳 앞뒤를 잘라 `snippet` 으로 돌려준다. 제목·키워드가 맞은 단원은 snippet 이 없다.
+- 목록은 장 단위로 `searchLessons` 를 돌려 결과가 있는 장만 남긴다. 검색은 렌더마다가 아니라 `useMemo` 로 검색어가 바뀔 때만 한다. 23단원 본문이라 색인은 두지 않는다.
+
 ## 주요 설계 결정
 
 - 이름을 "예제 DB 초기화" 에서 "샘플 데이터 되돌리기" 로 바꾼 이유: "예제 DB" 라는 말이 화면 어디에도 설명돼 있지 않아 연습장까지 지워지는지 헷갈렸다.

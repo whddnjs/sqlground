@@ -21,6 +21,8 @@ interface ProblemState extends Saved {
   select(id: string): void
   saveDraft(id: string, sql: string): void
   markSolved(id: string): void
+  /** 해결 기록·작성 중인 답안·마지막 문제 위치를 모두 지운다 (설정의 진행 기록 초기화) */
+  reset(): void
 }
 
 export const useProblemStore = create<ProblemState>((set, get) => {
@@ -36,5 +38,6 @@ export const useProblemStore = create<ProblemState>((set, get) => {
     markSolved: (id) => {
       if (!get().solved.includes(id)) commit({ solved: [...get().solved, id] })
     },
+    reset: () => commit({ solved: [], drafts: {}, lastProblem: null }),
   }
 })

@@ -98,7 +98,11 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                   {c}
                 </th>
               ))}
-              {editable && <th className="w-px border-b border-line" />}
+              {editable && (
+                <th className="w-px border-b border-line">
+                  <span className="sr-only">편집</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>

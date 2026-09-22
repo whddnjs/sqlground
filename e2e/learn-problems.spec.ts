@@ -16,6 +16,24 @@ test.describe('학습', () => {
     await expect(page.getByText(/실행 완료/).first()).toBeVisible()
   })
 
+  test('검색은 본문 내용으로도 단원을 찾고 맞은 곳을 보여 준다', async ({ page }) => {
+    await page.goto('/learn/select')
+    const list = page.getByRole('complementary', { name: '단원 목록' })
+    await page.getByPlaceholder(/찾기/).fill('ambiguous')
+    await expect(list.getByRole('button', { name: /JOIN 기본/ })).toBeVisible()
+    await expect(list.getByText(/ambiguous column name/)).toBeVisible()
+    await expect(list.getByRole('button', { name: /SELECT 기본/ })).toBeHidden()
+    await page.getByPlaceholder(/찾기/).fill('zzzz없는말')
+    await expect(list.getByText('검색 결과가 없습니다.')).toBeVisible()
+  })
+
+  test('본문의 마크다운 표가 표로 그려진다', async ({ page }) => {
+    await page.goto('/learn/where')
+    const table = page.locator('.lesson-body table').first()
+    await expect(table).toBeVisible()
+    await expect(table.getByRole('columnheader', { name: '연산자' })).toBeVisible()
+  })
+
   test('예제 에디터에서 테이블과 컬럼이 자동완성된다', async ({ page }) => {
     await openApp(page)
     await page.getByRole('link', { name: '학습' }).click()
@@ -26,13 +44,29 @@ test.describe('학습', () => {
     await expect(page.getByRole('option', { name: /^city/ })).toBeVisible()
   })
 
+  test('끝나지 않는 예제는 한도(10초)가 지나면 저절로 중단되고 계속 쓸 수 있다', async ({ page }) => {
+    test.setTimeout(45_000)
+    await openApp(page)
+    await page.getByRole('link', { name: '학습' }).click()
+    await setEditor(page, 'WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c;')
+    await page.getByRole('button', { name: '실행', exact: true }).first().click()
+    await expect(page.getByRole('button', { name: '중단' })).toBeVisible()
+    await expect(page.getByText(/실행 시간이 10초를 넘어 중단했습니다/)).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('button', { name: '중단' })).toBeHidden()
+
+    await setEditor(page, 'SELECT count(*) AS n FROM products;')
+    await page.getByRole('button', { name: '실행', exact: true }).first().click()
+    await expect(page.getByRole('columnheader', { name: 'n' })).toBeVisible()
+  })
+
   test('끝나지 않는 예제를 중단하면 학습용 DB 가 샘플 상태로 돌아오고 계속 쓸 수 있다', async ({ page }) => {
     await openApp(page)
     await page.getByRole('link', { name: '학습' }).click()
     await setEditor(page, 'DROP TABLE order_items; WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT count(*) FROM c;')
     await page.getByRole('button', { name: '실행', exact: true }).first().click()
     await page.getByRole('button', { name: '중단' }).click()
-    await expect(page.getByText(/실행을 중단했습니다/)).toBeVisible()
+    // 중단은 워커를 새로 띄우고 복구 지점을 다시 싣는다. 다른 테스트와 함께 돌 때는 몇 초 걸릴 수 있다
+    await expect(page.getByText(/실행을 중단했습니다/)).toBeVisible({ timeout: 15_000 })
 
     await setEditor(page, 'SELECT count(*) AS n FROM order_items;')
     await page.getByRole('button', { name: '실행', exact: true }).first().click()
@@ -81,6 +115,10 @@ test.describe('문제풀이', () => {
     await page.getByRole('button', { name: '제출' }).click()
     await expect(page.getByText('정답입니다!')).toBeVisible()
     await expect(page.getByText(/^1 \/ \d+ 해결$/)).toBeVisible()
+
+    // 진행도: 장별 해결 수와 다음 문제 버튼
+    await expect(page.getByRole('progressbar', { name: '문제 해결 진행도' })).toHaveAttribute('aria-valuenow', '1')
+    await expect(page.getByRole('button', { name: /^다음 문제: 카테고리 목록/ })).toBeVisible()
 
     // 정답 뒤에 다시 실행해도 모범 답안은 닫히지 않는다
     await page.getByRole('button', { name: '실행', exact: true }).click()

@@ -1,6 +1,7 @@
 import type { Completion, CompletionSource } from '@codemirror/autocomplete'
 import { SQLite, sql } from '@codemirror/lang-sql'
 import type { Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import { editorTheme } from '../components/editor/editor-theme'
 import type { TableInfo } from '../db/engine'
 
@@ -53,6 +54,11 @@ function columnCompletionSource(tables: TableInfo[]): CompletionSource {
 }
 
 /** 모든 SQL 에디터(연습장, 학습 예제, 문제풀이)가 공통으로 쓰는 언어 확장 */
+/** 에디터 본문(role=textbox)에 보조 기술이 읽을 이름을 붙인다 */
+export function editorLabel(label: string): Extension {
+  return EditorView.contentAttributes.of({ 'aria-label': label })
+}
+
 export function sqlExtensions(tables: TableInfo[]): Extension[] {
   return [
     editorTheme,
