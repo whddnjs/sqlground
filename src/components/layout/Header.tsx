@@ -69,7 +69,7 @@ export function Header({ onRun, onReset, onLoadPreset, onShowShortcuts }: Props)
             <button onClick={onRun} title="Cmd/Ctrl + Enter" aria-label="실행" className="btn btn-primary ml-1.5 pr-1.5">
               <Play size={13} fill="currentColor" />
               실행
-              <span aria-hidden="true" className="ml-1 hidden rounded bg-white/15 px-1 font-mono text-[10px] font-normal text-white/80 md:inline">{IS_MAC ? '⌘↵' : 'Ctrl ↵'}</span>
+              <span aria-hidden="true" className="ml-1 hidden rounded bg-black/20 px-1 font-mono text-[10px] font-normal text-white md:inline">{IS_MAC ? '⌘↵' : 'Ctrl ↵'}</span>
             </button>
           ))}
       </div>
