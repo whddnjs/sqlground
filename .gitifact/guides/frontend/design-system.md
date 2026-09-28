@@ -44,6 +44,7 @@
 
 - `src/components/editor/editor-theme.ts` 가 CSS 변수(`--syn-*`)로 구문 색을 정의한다. 연습장, 학습 예제, 문제풀이 세 에디터가 `sqlExtensions()` 로 같은 테마와 자동완성을 쓴다
 - @uiw/react-codemirror 의 기본 테마는 `theme="none"` 으로 끈다. 켜면 앱 배경과 어긋난다
+- 현재 줄 배경(`--syn-active-line`)은 반투명(rgb … / 0.0x)이어야 한다. CodeMirror 는 선택 영역을 본문 아래 층에 그리므로 불투명한 줄 배경이 선택 영역을 덮어 "드래그해도 블록이 안 보이는" 버그가 된다. 연습장만 현재 줄 강조를 켜 두고 있어 연습장에서만 나타났다
 
 ## 브랜드
 

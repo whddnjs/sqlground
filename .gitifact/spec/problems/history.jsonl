@@ -9,3 +9,4 @@
 {"id":"H-3dx6r4hubr","requirements":["R-4xrdj5mnem"],"reason":"사용자 지적: 목록 아래 '이어 풀기' 가 그냥 다음 문제로 가는 것처럼 보임. 푼 문제가 없으면 실제로 구분이 안 되므로 버튼을 빼고 정답 후 '다음 문제' 만 남기기로 결정"}
 {"id":"H-nbgz2cpyu7","requirements":["R-wmleufsvbg"],"reason":"사용자 선택: 개선 후보 중 '문제 더 추가'. 장을 마친 뒤 여러 단원을 섞어 푸는 종합 문제를 장당 3문제로 하기로 합의. 처음엔 각 장 끝에 '종합' 소제목으로 넣었으나 목록이 지저분하다는 사용자 판단으로 맨 끝 별도 장으로 옮김"}
 {"id":"H-d5qzrim7ow","requirements":[],"designs":["S-7gqlw7ef4d"],"reason":"종합 문제의 표현(Problem.mixes)과 목록 구조(SECTIONS), 이어 풀기 제거 이유 기록"}
+{"id":"H-oa4iwpckbq","requirements":[],"designs":["S-7gqlw7ef4d"],"reason":"사용자 요청: 답안 보여 줄 때 포맷을 보기 좋게. 콘텐츠는 한 줄 유지, 표시 때만 정리하는 구조를 기록"}

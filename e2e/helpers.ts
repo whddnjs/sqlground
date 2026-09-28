@@ -12,7 +12,8 @@ export async function openApp(page: Page) {
  * 원래 값으로 되돌아가는 일이 있어, 내용이 남았는지 확인하고 아니면 다시 채운다.
  */
 export async function setEditor(page: Page, sql: string, nth = 0) {
-  const editor = page.locator('.cm-content').nth(nth)
+  // 읽기 전용 SQL 블록(답안·확인 쿼리)도 CodeMirror 라 편집 가능한 것만 센다
+  const editor = page.locator('.cm-content[contenteditable="true"]').nth(nth)
   const head = sql.replace(/\s+/g, ' ').slice(0, 24)
   for (let attempt = 0; attempt < 4; attempt++) {
     await editor.fill(sql)

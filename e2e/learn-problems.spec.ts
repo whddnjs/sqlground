@@ -151,7 +151,8 @@ test.describe('문제풀이', () => {
   test('정답 보기는 제출 전에도 열리고, 본 뒤에도 제출과 해결 표시는 그대로 된다', async ({ page }) => {
     await page.goto('/problems/p-select-2')
     await page.getByRole('button', { name: '정답 보기' }).click()
-    await expect(page.getByText('SELECT DISTINCT category FROM products', { exact: true })).toBeVisible()
+    // 답안은 줄 바꿈·들여쓰기가 정리돼 보인다
+    await expect(page.getByRole('figure', { name: '모범 답안 SQL' })).toContainText(/SELECT DISTINCT\s+category\s*FROM\s+products/)
     await setEditor(page, 'SELECT DISTINCT category FROM products')
     await page.getByRole('button', { name: '제출' }).click()
     await expect(page.getByText('정답입니다!')).toBeVisible()

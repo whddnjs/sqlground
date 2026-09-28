@@ -4,6 +4,7 @@ import CodeMirror from '@uiw/react-codemirror'
 import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Eye, GraduationCap, Lightbulb, Menu, Play, RotateCcw, Send, Square, Target, TerminalSquare, Trophy } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
+import { SqlBlock } from '../components/editor/SqlBlock'
 import { SideList } from '../components/layout/SideList'
 import { ExpectedResult } from '../components/problems/ExpectedResult'
 import { ProblemContext } from '../components/problems/ProblemContext'
@@ -309,7 +310,8 @@ export function ProblemsView() {
                 이 문제는 <strong>데이터를 바꾸는</strong> 문제입니다. 실행·제출하면 아래 확인 쿼리의 결과를 보여 주고 정답과 비교한 뒤,
                 DB 를 <strong>원래대로 되돌립니다</strong>. 몇 번이든 다시 시도할 수 있습니다.
               </p>
-              <pre className="mt-2 overflow-x-auto font-mono text-[11px] text-fg-muted">확인 쿼리: {current.checkSql}</pre>
+              <p className="mt-2 mb-1 text-[11px]">확인 쿼리</p>
+              <SqlBlock sql={current.checkSql} label="확인 쿼리 SQL" />
             </div>
           ) : (
             <p className="mb-4 text-xs text-fg-muted">

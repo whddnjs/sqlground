@@ -92,7 +92,6 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                   <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="이 페이지 모두 선택" className="accent-(--color-accent)" />
                 </th>
               )}
-              <th className="w-px border-b border-line px-3 py-1.5 text-right font-normal text-fg-subtle">#</th>
               {result.columns.map((c, i) => (
                 <th key={i} className={['border-b border-line px-3 py-1.5 font-mono font-medium whitespace-nowrap', numeric[i] ? 'text-right' : ''].join(' ')}>
                   {c}
@@ -116,7 +115,6 @@ export function ResultGrid({ result, editable, onUpdateCell, onDeleteRow, onDele
                       <input type="checkbox" checked={isSelected} onChange={() => toggleRow(pkOf(row))} aria-label={`${ri + 1}행 선택`} className="accent-(--color-accent)" />
                     </td>
                   )}
-                  <td className="border-b border-line px-3 py-1 text-right font-mono text-[11px] text-fg-subtle tabular-nums">{ri + 1}</td>
                   {row.map((v, ci) => {
                     const isEditing = editing?.row === ri && editing.col === ci
                     const canEdit = !!editable && ci !== editable.pkIndex && editable.columnMap.has(ci)

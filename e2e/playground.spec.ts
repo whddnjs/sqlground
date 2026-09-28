@@ -148,6 +148,22 @@ test.describe('연습장', () => {
     await expect(page.locator('li code', { hasText: 'SELECT 42 AS answer;' })).toBeVisible()
   })
 
+  test('현재 줄 강조가 선택 영역을 가리지 않는다 (현재 줄 배경은 반투명)', async ({ page }) => {
+    await openApp(page)
+    const line = page.locator('.cm-content .cm-line').nth(3)
+    await line.click()
+    await page.keyboard.press('Home')
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight')
+    // 선택 영역이 그려져 있고, 현재 줄 배경의 알파가 1 미만이어야 그 아래 선택 영역이 비친다
+    await expect(page.locator('.cm-selectionBackground').first()).toBeVisible()
+    const alpha = await page.locator('.cm-activeLine').first().evaluate((el) => {
+      const m = getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/)
+      const parts = m![1].split(/[\s,/]+/).map(Number)
+      return parts.length >= 4 ? parts[3] : 1
+    })
+    expect(alpha).toBeLessThan(0.5)
+  })
+
   test('코드 합자는 기본으로 꺼져 있고, 설정에서 켜면 에디터와 코드에 적용된다', async ({ page }) => {
     await openApp(page)
     const ligatures = async () => {
