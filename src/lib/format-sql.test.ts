@@ -3,9 +3,9 @@ import { PROBLEMS } from '../problems/content'
 import { formatSql } from './format-sql'
 
 describe('답안 SQL 정리', () => {
-  it('절마다 줄을 나누고 들여쓴다', () => {
+  it('절마다 줄을 나누고 키워드를 오른쪽 끝에 맞춘다', () => {
     expect(formatSql("SELECT name, city FROM customers WHERE city IN ('서울', '부산')")).toBe(
-      "SELECT\n  name,\n  city\nFROM\n  customers\nWHERE\n  city IN ('서울', '부산')",
+      "SELECT name,\n       city\n  FROM customers\n WHERE city IN ('서울', '부산')",
     )
   })
 

@@ -45,7 +45,7 @@
 
 ## 답안 SQL 표시
 
-- 콘텐츠의 `answerSql`·`alternatives[].sql`·`checkSql` 은 채점과 테스트가 다루기 쉽게 **한 줄**로 둔다. 화면에 보여 줄 때만 `lib/format-sql.ts`(sql-formatter, sqlite 방언, 키워드 대소문자 유지)로 줄 바꿈·들여쓰기를 정리한다. 포맷터가 못 읽는 문장은 원문 그대로.
+- 콘텐츠의 `answerSql`·`alternatives[].sql`·`checkSql` 은 채점과 테스트가 다루기 쉽게 **한 줄**로 둔다. 화면에 보여 줄 때만 `lib/format-sql.ts`(sql-formatter, sqlite 방언, 키워드 대소문자 유지, 키워드를 오른쪽 끝에 맞추는 `tabularRight`)로 줄 바꿈·들여쓰기를 정리한다. tabularRight 는 가장 긴 키워드(LEFT JOIN) 폭에 맞춰 앞에 빈칸을 두므로 문장마다 공통 앞 빈칸을 걷어낸다. 스타일은 사용자가 기본·tabularLeft·tabularRight 출력을 비교해 골랐다(세로 길이가 짧고 절 구조가 한눈에 보임). 포맷터가 못 읽는 문장은 원문 그대로.
 - 표시는 `components/editor/SqlBlock`: 읽기 전용 CodeMirror 로 에디터와 같은 색으로 강조한다. `role="figure"` 와 이름을 두어 테스트가 찾는다. e2e 헬퍼 `setEditor` 는 편집 가능한 `.cm-content` 만 세므로 읽기 전용 블록이 위에 있어도 엇갈리지 않는다.
 
 ## 오류 처리와 검증
